@@ -1,7 +1,8 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
+import { createRequire } from "node:module";
 import { createServer } from "node:net";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { expect, test } from "@playwright/test";
@@ -19,6 +20,12 @@ interface ManagedProcess {
 
 const REPOSITORY_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const DESKTOP_DIRECTORY = resolve(REPOSITORY_ROOT, "apps", "desktop");
+const moduleRequire = createRequire(import.meta.url);
+const VITE_ENTRYPOINT = resolve(
+  dirname(moduleRequire.resolve("vite/package.json")),
+  "bin",
+  "vite.js",
+);
 const BACKEND_EXECUTABLE =
   process.platform === "win32"
     ? resolve(REPOSITORY_ROOT, ".venv", "Scripts", "qfusion-backend.exe")
@@ -187,6 +194,7 @@ test.beforeAll(async () => {
     REPOSITORY_ROOT,
     backendPort,
     {
+      QFUSION_ALLOWED_ORIGINS: JSON.stringify([frontendUrl]),
       QFUSION_ENVIRONMENT: "test",
       QFUSION_LLM_MODE: "off",
       QFUSION_PORT: String(backendPort),
@@ -197,11 +205,9 @@ test.beforeAll(async () => {
     await waitForService(backendProcess, `${backendUrl}/api/v1/health`);
     frontendProcess = startManagedProcess(
       "frontend",
-      "pnpm",
+      process.execPath,
       [
-        "run",
-        "dev",
-        "--",
+        VITE_ENTRYPOINT,
         "--host",
         "127.0.0.1",
         "--port",
