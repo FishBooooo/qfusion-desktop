@@ -46,6 +46,7 @@
     "services/backend/tests/test_entrypoint.py",
     "services/backend/tests/test_health.py",
     "apps/desktop/src/App.tsx",
+    "apps/desktop/src-tauri/app-icon.svg",
     "apps/desktop/src-tauri/Cargo.lock",
     "apps/desktop/src-tauri/tauri.conf.json",
     "scripts/validate_workspace.py",

@@ -4,13 +4,18 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - ".github/workflows/windows-release.yml"
       - "apps/desktop/**"
       - "services/backend/**"
       - "scripts/build_backend.py"
       - "scripts/build_windows.ps1"
+      - "scripts/install_tools_windows.ps1"
+      - "scripts/qfusion_env.ps1"
+      - "scripts/toolchain-versions.json"
       - "pyproject.toml"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "rust-toolchain.toml"
 
 permissions:
   contents: read
@@ -18,34 +23,23 @@ permissions:
 jobs:
   build-windows:
     runs-on: windows-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          python-version: "3.12"
-          enable-cache: true
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.13.1
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-msvc
-          components: clippy,rustfmt
-      - name: Build and test the Windows M0 baseline
+      - uses: actions/checkout@v6
+
+      - name: Build and test with pinned project-local toolchains
         shell: pwsh
         run: ./scripts/build_windows.ps1
+
       - name: Upload backend standalone build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: qfusion-backend-windows-m0
           path: dist/backend/**
           if-no-files-found: error
+
       - name: Upload empty-shell NSIS installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: qfusion-desktop-windows-m0
           path: apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe

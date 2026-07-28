@@ -46,7 +46,7 @@ addopts = [
   "--cov-report=term-missing",
   "--cov-fail-under=90",
 ]
-pythonpath = ["services/backend"]
+pythonpath = [".", "services/backend"]
 testpaths = ["services/backend/tests"]
 
 [tool.coverage.run]

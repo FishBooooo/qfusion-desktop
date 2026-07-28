@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">QFusion Desktop</title>
+  <defs>
+    <linearGradient id="background" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#14213D"/>
+      <stop offset="1" stop-color="#07111F"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="136" y1="128" x2="402" y2="402" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4DE3FF"/>
+      <stop offset="1" stop-color="#34D399"/>
+    </linearGradient>
+  </defs>
+  <rect x="20" y="20" width="472" height="472" rx="112" fill="url(#background)"/>
+  <circle cx="242" cy="238" r="126" fill="none" stroke="url(#signal)" stroke-width="46"/>
+  <path d="M319 315L405 401" fill="none" stroke="#34D399" stroke-linecap="round" stroke-width="46"/>
+  <path d="M139 249L192 201L237 235L315 153L369 190" fill="none" stroke="#F8FAFC" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"/>
+  <circle cx="139" cy="249" r="13" fill="#4DE3FF"/>
+  <circle cx="192" cy="201" r="13" fill="#4DE3FF"/>
+  <circle cx="237" cy="235" r="13" fill="#F8FAFC"/>
+  <circle cx="315" cy="153" r="13" fill="#34D399"/>
+  <circle cx="369" cy="190" r="13" fill="#34D399"/>
+</svg>

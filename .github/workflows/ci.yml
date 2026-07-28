@@ -10,85 +10,41 @@ permissions:
   contents: read
 
 jobs:
-  backend:
+  linux-m0:
+    name: Linux M0
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          python-version: "3.12"
-          enable-cache: true
-      - run: uv sync --all-extras
-      - run: uv run ruff check services/backend scripts
-      - run: uv run mypy
-      - run: uv run pytest
-      - run: uv run python scripts/export_openapi.py
-      - run: git diff --exit-code -- packages/contracts/openapi.json
+      - uses: actions/checkout@v6
 
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          python-version: "3.12"
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.13.1
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
-      - run: uv sync --all-extras
-      - run: uv run python scripts/export_openapi.py
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm generate:client
-      - run: git diff --exit-code -- packages/generated-client/src/schema.d.ts
-      - run: pnpm --dir apps/desktop lint
-      - run: pnpm --dir apps/desktop typecheck
-      - run: pnpm --filter @qfusion/generated-client typecheck
-      - run: pnpm --dir apps/desktop test
-      - run: pnpm --dir apps/desktop build
+      - name: Bootstrap pinned project-local toolchains
+        run: ./scripts/bootstrap_linux.sh
 
-  e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          python-version: "3.12"
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.13.1
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
-      - run: uv sync --all-extras
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --dir apps/desktop exec playwright install --with-deps chromium
-      - run: pnpm --dir apps/desktop test:e2e
+      - name: Validate workspace and generated contracts
+        run: |
+          ./scripts/run_in_qfusion_env.sh uv run --locked python scripts/validate_workspace.py --with-tools
+          ./scripts/run_in_qfusion_env.sh uv run --locked python scripts/export_openapi.py
+          ./scripts/run_in_qfusion_env.sh pnpm generate:client
+          git diff --exit-code -- packages/contracts/openapi.json packages/generated-client/src/schema.d.ts
 
-  desktop-rust:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Tauri Linux dependencies
-        run: >
-          sudo apt-get update &&
-          sudo apt-get install --yes
-          libwebkit2gtk-4.1-dev
-          build-essential
-          curl
-          wget
-          file
-          libxdo-dev
-          libssl-dev
-          libayatana-appindicator3-dev
-          librsvg2-dev
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy,rustfmt
-      - run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --all --check
-      - run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings
-      - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+      - name: Lint and type-check
+        run: |
+          ./scripts/run_in_qfusion_env.sh uv run --locked ruff check services/backend scripts
+          ./scripts/run_in_qfusion_env.sh uv run --locked mypy
+          ./scripts/run_in_qfusion_env.sh pnpm --dir apps/desktop lint
+          ./scripts/run_in_qfusion_env.sh pnpm --dir apps/desktop typecheck
+          ./scripts/run_in_qfusion_env.sh pnpm --filter @qfusion/generated-client typecheck
+
+      - name: Run backend and frontend unit tests
+        run: |
+          ./scripts/run_in_qfusion_env.sh uv run --locked python -m pytest
+          ./scripts/run_in_qfusion_env.sh pnpm --dir apps/desktop test
+
+      - name: Build the frontend
+        run: ./scripts/run_in_qfusion_env.sh pnpm --dir apps/desktop build
+
+      - name: Install the project-local Playwright browser
+        run: ./scripts/run_in_qfusion_env.sh pnpm --dir apps/desktop exec playwright install chromium
+
+      - name: Run dynamic-loopback E2E
+        run: ./scripts/run_in_qfusion_env.sh pnpm --dir apps/desktop test:e2e
