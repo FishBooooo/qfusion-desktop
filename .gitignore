@@ -1,0 +1,76 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+*.p12
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Project-local toolchains, caches, and temporary files
+.cache/
+.tmp/
+.toolchains/
+
+# Node / frontend
+node_modules/
+apps/desktop/dist/
+apps/desktop/coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Rust / Tauri
+target/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/binaries/*
+!apps/desktop/src-tauri/binaries/README.md
+
+# Build artifacts
+dist/
+build/
+*.AppImage
+*.msi
+*-setup.exe
+
+# Local application data and databases
+.qfusion/
+data/
+var/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.duckdb
+*.duckdb.wal
+*.parquet
+
+# Editors and OS files
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

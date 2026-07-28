@@ -1,0 +1,95 @@
+# QFusion 项目专用 Codex 权限配置
+#
+# 目标：
+# - Codex 可在当前炒股项目内自主开发
+# - 不需要每次请求批准
+# - 无法读取或修改项目外的科研目录和用户环境
+# - 可以访问公共互联网下载依赖、查询文档和调用金融 API
+
+approval_policy = "never"
+allow_login_shell = false
+default_permissions = "qfusion-only"
+
+# 防止启动登录 Shell，避免加载 ~/.bashrc、Conda、ROS 等用户环境。
+
+[shell_environment_policy]
+inherit = "core"
+experimental_use_profile = false
+
+# 排除科研和全局开发环境变量。
+
+exclude = [
+  "CONDA_*",
+  "VIRTUAL_ENV",
+  "PYTHONPATH",
+  "LD_LIBRARY_PATH",
+  "ROS_*",
+  "AMENT_*",
+  "COLCON_*",
+  "CMAKE_PREFIX_PATH",
+  "CUDA_*",
+  "NVIDIA_*",
+  "DOCKER_*",
+  "PODMAN_*",
+  "KUBECONFIG",
+  "SSH_AUTH_SOCK",
+]
+
+# QFusion 专用权限配置。
+
+[permissions.qfusion-only]
+description = "Codex may work autonomously only inside the active QFusion workspace."
+extends = ":workspace"
+
+# 默认禁止访问整个文件系统。
+# 只开放常用开发工具运行所需的最小系统路径。
+
+[permissions.qfusion-only.filesystem]
+":root" = "deny"
+":minimal" = "read"
+
+# `:workspace` 默认还允许写系统临时目录；显式拒绝以保证所有新增文件留在仓库内。
+":tmpdir" = "deny"
+":slash_tmp" = "deny"
+
+# 当前炒股项目目录可读写。
+# 重要规范和凭证文件单独限制。
+
+[permissions.qfusion-only.filesystem.":workspace_roots"]
+"." = "write"
+
+# 防止 Codex 自行修改自己的总规则和任务书。
+
+"AGENTS.md" = "read"
+"PROJECT_TASKBOOK.md" = "read"
+
+# 不允许模型读取项目密钥。
+
+".env" = "deny"
+".env.local" = "deny"
+".env.production" = "deny"
+"secrets" = "deny"
+
+# 允许访问公共互联网，便于下载依赖、查询文档和调用金融 API。
+
+[permissions.qfusion-only.network]
+enabled = true
+
+# 保持本地和私有网络防护。
+# 不允许访问 localhost、局域网服务或科研服务。
+
+allow_local_binding = false
+
+# 不继承宿主机已有代理，避免意外访问科研内网服务。
+
+allow_upstream_proxy = false
+
+[permissions.qfusion-only.network.domains]
+"*" = "allow"
+
+# 明确禁止访问常见容器引擎 Socket。
+
+[permissions.qfusion-only.network.unix_sockets]
+"/var/run/docker.sock" = "deny"
+"/run/docker.sock" = "deny"
+"/run/podman/podman.sock" = "deny"

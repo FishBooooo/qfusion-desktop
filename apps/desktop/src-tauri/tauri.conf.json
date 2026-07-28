@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "QFusion Desktop",
+  "version": "0.1.0",
+  "identifier": "com.qfusion.desktop",
+  "build": {
+    "beforeBuildCommand": "pnpm build",
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:*; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
+    },
+    "windows": [
+      {
+        "center": true,
+        "height": 820,
+        "label": "main",
+        "minHeight": 640,
+        "minWidth": 960,
+        "resizable": true,
+        "title": "QFusion Desktop",
+        "width": 1440
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "category": "Finance",
+    "copyright": "Copyright © 2026 QFusion Desktop contributors",
+    "shortDescription": "Local multi-perspective research workspace",
+    "targets": ["nsis"],
+    "windows": {
+      "nsis": {
+        "displayLanguageSelector": false,
+        "installMode": "currentUser"
+      }
+    }
+  }
+}

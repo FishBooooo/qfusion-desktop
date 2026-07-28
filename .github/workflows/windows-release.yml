@@ -1,0 +1,52 @@
+name: Windows M0 Build
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "services/backend/**"
+      - "scripts/build_backend.py"
+      - "scripts/build_windows.ps1"
+      - "pyproject.toml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: clippy,rustfmt
+      - name: Build and test the Windows M0 baseline
+        shell: pwsh
+        run: ./scripts/build_windows.ps1
+      - name: Upload backend standalone build
+        uses: actions/upload-artifact@v4
+        with:
+          name: qfusion-backend-windows-m0
+          path: dist/backend/**
+          if-no-files-found: error
+      - name: Upload empty-shell NSIS installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: qfusion-desktop-windows-m0
+          path: apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error

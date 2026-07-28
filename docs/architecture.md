@@ -1,0 +1,136 @@
+# QFusion Desktop 架构基线
+
+状态：M0 基线  
+最后更新：2026-07-27  
+最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
+
+## 1. 目标与边界
+
+QFusion Desktop 是本地优先的美股与港股科技板块多视角交易决策平台。第一阶段采用：
+
+- Tauri 2 桌面外壳；
+- React + TypeScript 前端；
+- Python 3.12+ FastAPI 本地 Sidecar；
+- SQLite 保存元数据和应用状态；
+- DuckDB + Parquet 保存分析数据；
+- 本地文件系统保存原始数据。
+
+MVP 只支持研究、模拟交易、订单预览和人工确认，不提供自动实盘下单路径。
+
+## 2. 不可破坏的架构约束
+
+1. 华尔街、量化、游资三套独立模型使用同一个 `snapshot_id`。
+2. 三套模型只能读取获准的数据快照，不能读取彼此的结果、置信度或交易建议。
+3. 融合模型只能读取已通过契约验证的 Fusion Packet。
+4. 融合结果必须进入独立的全局风险引擎；风险引擎拥有最终否决权。
+5. 数值、时间、成本、仓位和风险许可由确定性代码计算，不交给 LLM。
+6. 证券永久标识使用内部 `instrument_id`，ticker 只作为带有效期的别名。
+7. 所有金融事实保留来源、时间、版本、修订与质量元数据。
+8. 回测和历史决策只能使用 `available_at <= decision_time` 的数据。
+
+## 3. 运行时拓扑
+
+```text
+Tauri Desktop
+  └─ React UI
+       └─ localhost API + session token
+            └─ FastAPI Sidecar
+                 ├─ API / application services
+                 ├─ data ingestion + provider adapters
+                 ├─ snapshot service
+                 ├─ model orchestrator
+                 │    ├─ WallStreet worker
+                 │    ├─ Quant worker
+                 │    └─ HotMoney worker
+                 ├─ fusion service
+                 ├─ global risk engine
+                 └─ repositories
+                      ├─ SQLite
+                      ├─ DuckDB / Parquet
+                      └─ raw file store
+```
+
+正式桌面运行时只监听 `127.0.0.1`，由 Tauri 为每次会话生成临时令牌并启动 Sidecar。Sidecar 选择随机空闲端口，通过受控握手把端口和健康状态交给桌面端。M0 开发演示暂用固定端口 `8000`；这不是正式部署契约。
+
+## 4. 后端分层
+
+依赖方向必须从外向内：
+
+```text
+API / Scheduler
+      ↓
+Application services
+      ↓
+Domain contracts and rules
+      ↑
+Provider adapters / Repository implementations
+```
+
+- `domain`：纯业务类型、规则和接口，不依赖 FastAPI、供应商 SDK 或具体数据库。
+- `providers`：外部数据源 Adapter；不得从路由或模型直接调用供应商。
+- `storage`：Repository 实现、迁移和单写入队列。
+- `snapshots`：构建不可变、可追溯的分析快照。
+- `models`：三套独立模型与融合模型；独立模型只接收能力受限的快照输入。
+- `risk`：确定性全局风险检查，位于融合结果之后。
+- `api`：Pydantic 边界验证和 HTTP 映射，不承载金融业务计算。
+
+业务逻辑不直接读取环境变量。配置只在组合根加载，并以类型化设置传入。
+
+## 5. 模型数据流
+
+```text
+point-in-time facts
+      ↓
+AnalysisSnapshot(snapshot_id)
+      ├─→ WallStreet result ─┐
+      ├─→ Quant result ──────┼─→ validate Fusion Packets
+      └─→ HotMoney result ───┘            ↓
+                                      Fusion
+                                         ↓
+                                  Global Risk Engine
+                                         ↓
+                                  Final/Paper Report
+```
+
+独立模型输出分别持久化。Fusion Packet 只包含融合所需的结构化字段和证据引用，不把自由文本报告当作主要输入。每一步记录输入版本、模型版本、参数版本和运行 ID。
+
+## 6. 存储边界
+
+- SQLite：设置、观察池、运行索引、风险配置、模拟订单、审计与报告索引。
+- DuckDB + Parquet：K 线、因子、标签、预测、期权快照与回测结果。
+- Raw Store：供应商原始响应、公告、新闻、财报和文件哈希。
+- 系统采用单写入器原则；并发读取可以存在，并发任务不能直接写同一个 DuckDB 文件。
+- 用户数据位于 `%LOCALAPPDATA%\QFusion\`，不写入安装目录。
+
+详细概念模型见 [data-model.md](data-model.md)，存储选择见 [ADR-0001](adr/0001-local-lite-storage.md)。
+
+## 7. 前端边界
+
+- 服务端状态由 TanStack Query 管理。
+- 仅 UI 本地状态使用轻量 Store。
+- API 类型从后端 OpenAPI Schema 生成。
+- 金额、百分比和时间使用显式解析与格式化。
+- 数据状态至少区分 `FRESH`、`DELAYED`、`STALE`、`MISSING`。
+- 风险和数据质量不能只依赖颜色表达。
+
+## 8. 安全边界
+
+- API Key 不进入前端、普通日志、报告或异常正文。
+- 正式本地 API 使用临时会话认证、精确 CORS 和 localhost 绑定。
+- 导入路径与 Sidecar 参数使用白名单。
+- CI 中所有供应商与 LLM 调用必须 Mock。
+- 仓库中不存在实盘提交路由。
+- 开发工具链、依赖缓存和临时文件必须保留在仓库内，并从不继承科研、Conda、ROS、
+  CUDA、容器或用户代理环境；完整决策见 [ADR-0006](adr/0006-project-local-toolchains.md)。
+
+## 9. M0 验证范围
+
+M0 只验证项目边界和工具链：
+
+- FastAPI 健康检查可独立运行和测试；
+- React 页面能显示合成 Mock 分析并探测后端健康状态；
+- Tauri 空壳具有 Windows 构建配置；
+- Linux 命令、基础测试和 CI 工作流存在；
+- 不创建数据库、不调用供应商、不运行模型、不提交任何订单。
+
+后续里程碑不得在 M0 验收前提前实现。进度见 [roadmap.md](roadmap.md)。

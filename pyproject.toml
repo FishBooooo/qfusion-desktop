@@ -1,0 +1,105 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qfusion-backend"
+version = "0.1.0"
+description = "Local FastAPI sidecar for QFusion Desktop"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = { file = "LICENSE" }
+authors = [{ name = "QFusion Desktop contributors" }]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "pydantic>=2.10,<3",
+  "pydantic-settings>=2.7,<3",
+  "uvicorn[standard]>=0.34,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28,<1",
+  "mypy>=1.14,<2",
+  "pytest>=8.3,<10",
+  "pytest-cov>=6,<8",
+  "ruff>=0.9,<1",
+]
+build = [
+  "nuitka>=2.6,<3",
+  "ordered-set>=4.1,<5",
+  "patchelf==0.17.2.4; sys_platform == 'linux'",
+  "zstandard>=0.23,<1",
+]
+
+[project.scripts]
+qfusion-backend = "qfusion.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["services/backend/qfusion"]
+
+[tool.pytest.ini_options]
+addopts = [
+  "--strict-config",
+  "--strict-markers",
+  "--cov=qfusion",
+  "--cov-report=term-missing",
+  "--cov-fail-under=90",
+]
+pythonpath = ["services/backend"]
+testpaths = ["services/backend/tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["qfusion"]
+
+[tool.coverage.report]
+exclude_also = [
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["services/backend"]
+
+[tool.ruff.lint]
+select = [
+  "A",
+  "ANN",
+  "ASYNC",
+  "B",
+  "C4",
+  "E",
+  "F",
+  "I",
+  "N",
+  "PERF",
+  "PIE",
+  "PTH",
+  "RUF",
+  "S",
+  "SIM",
+  "T20",
+  "UP",
+  "W",
+]
+ignore = [
+  "ANN401",
+  "S101",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"services/backend/tests/**/*.py" = ["ANN201", "S104"]
+"scripts/*.py" = ["T201"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "services/backend"
+packages = ["qfusion"]
+warn_unused_configs = true
+
+[tool.uv]
+package = true

@@ -1,0 +1,11 @@
+{
+  "name": "@qfusion/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "openapi.json"
+  ],
+  "exports": {
+    "./openapi.json": "./openapi.json"
+  }
+}

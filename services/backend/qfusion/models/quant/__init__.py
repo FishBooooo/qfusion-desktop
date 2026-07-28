@@ -1,0 +1,1 @@
+"""Quantitative perspective engine namespace."""

@@ -1,0 +1,43 @@
+{
+  "as_of": "2026-07-24T20:00:00Z",
+  "data_freshness": "SYNTHETIC_MOCK",
+  "fixture_kind": "SYNTHETIC_MOCK",
+  "instrument": {
+    "display_name": "合成科技样本",
+    "instrument_id": "00000000-0000-4000-8000-000000000001",
+    "market": "US",
+    "symbol_alias": "DEMO"
+  },
+  "market_timezone": "America/New_York",
+  "perspectives": [
+    {
+      "action": "WATCH",
+      "confidence_calibrated": 0.54,
+      "direction_score": 28,
+      "model_type": "wallstreet"
+    },
+    {
+      "action": "NO_TRADE",
+      "confidence_calibrated": 0.42,
+      "direction_score": 6,
+      "model_type": "quant"
+    },
+    {
+      "action": "NO_TRADE",
+      "confidence_calibrated": 0.48,
+      "direction_score": -18,
+      "model_type": "hotmoney"
+    },
+    {
+      "action": "NO_TRADE",
+      "confidence_calibrated": 0.39,
+      "direction_score": 2,
+      "model_type": "fusion"
+    }
+  ],
+  "requested_horizon": "5d",
+  "risk_permission": "PAPER_TRADE_ONLY",
+  "snapshot_id": "10000000-0000-4000-8000-000000000001",
+  "source": "qfusion-synthetic-fixture",
+  "source_version": "m0-v1"
+}

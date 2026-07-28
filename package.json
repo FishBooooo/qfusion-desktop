@@ -1,0 +1,17 @@
+{
+  "name": "qfusion-desktop-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=20 <25",
+    "pnpm": ">=10 <11"
+  },
+  "scripts": {
+    "build": "pnpm --recursive --if-present build",
+    "generate:client": "pnpm --filter @qfusion/generated-client generate",
+    "lint": "pnpm --recursive --if-present lint",
+    "test": "pnpm --recursive --if-present test",
+    "typecheck": "pnpm --recursive --if-present typecheck"
+  }
+}
