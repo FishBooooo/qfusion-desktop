@@ -1,6 +1,6 @@
 # Windows 部署基线
 
-状态：M0 构建骨架，尚未完成真实 Windows 验证
+状态：M0 GitHub 托管 Windows 构建与独立后端烟雾测试已通过
 最后更新：2026-07-29
 
 ## 1. 交付目标
@@ -21,7 +21,9 @@ QFusion.exe
   → 加载缓存并执行增量检查
 ```
 
-后端只监听 localhost，使用精确 CORS，支持优雅退出和单写入实例锁。M0 开发模式中的固定 `127.0.0.1:8000` 仅用于人工通信演示；自动化 E2E 必须使用操作系统分配的动态 Loopback 端口。
+后端只监听 localhost，使用精确 CORS，支持优雅退出和单写入实例锁。M0 开发模式中的固定
+`127.0.0.1:8000` 仅用于人工通信演示；自动化测试使用操作系统分配的动态 Loopback
+端口。Tauri 启动 Sidecar、临时会话令牌和动态端口握手仍属于后续 Windows 集成工作。
 
 ## 3. 构建组成
 
@@ -37,13 +39,35 @@ QFusion.exe
 与 just 安装到仓库内 `.toolchains/`，并将依赖、包管理器缓存和临时文件写入仓库内。
 脚本不加载 PowerShell Profile，不修改用户配置、系统工具链或现有科研环境。
 
+Windows 原生命令启用严格失败传播：任一外部可执行文件返回非零状态时，构建立即失败，
+后续测试、打包和 Artifact 上传不会继续。该规则已在修复过程中的失败运行中实际证明，
+避免把失败的 Nuitka 或 Rust 构建误报为成功。
+
 应用图标的唯一源文件是 `apps/desktop/src-tauri/app-icon.svg`。构建脚本在依赖安装后
 使用锁定的 Tauri CLI 将它生成到被忽略的 `src-tauri/icons/`，随后才运行 Rust 检查和
 NSIS 构建，避免提交平台生成物或依赖宿主图形工具。
 
-最终 Sidecar 文件名必须包含 Tauri 目标三元组，并由构建脚本复制到 `externalBin` 约定位置。该集成属于 M8；M0 只生成相互独立的后端和空桌面构建骨架。
+Windows Nuitka 构建使用项目本地缓存，并启用内置 `pefile` 依赖扫描方式，避免下载或
+调用 Dependency Walker。构建成功后生成 `dist/backend/build-manifest.json`，记录相对
+可执行文件路径与 SHA-256。M0 的后端与桌面安装包仍是两个独立 Artifact；将 Sidecar
+复制为带 Tauri 目标三元组的 `externalBin` 并由桌面端启动属于 M8。
 
-## 4. 用户数据
+## 4. 独立后端烟雾测试
+
+`scripts/smoke_backend_standalone.py` 只验证本次构建生成的 Windows 可执行文件：
+
+1. 解析构建清单，拒绝越出 `dist/backend` 的路径；
+2. 重新计算 SHA-256 并与清单比较；
+3. 由操作系统分配动态 `127.0.0.1` 端口；
+4. 记录 PID、启动时间、工作目录、端口和用途；
+5. 禁止 HTTP 重定向，只请求精确 `/api/v1/health`；
+6. 验证 M0 健康响应；
+7. 停止前再次核验所持进程对象和身份。
+
+日志与运行记录写入 Runner 当前仓库内的 `.tmp/`，不连接本机、局域网、科研服务或其他
+进程。
+
+## 5. 用户数据
 
 默认数据目录：
 
@@ -53,32 +77,52 @@ NSIS 构建，避免提交平台生成物或依赖宿主图形工具。
 
 程序升级保留数据。卸载默认不删除用户数据，只有用户明确选择后才允许删除。安装文件与用户数据库必须分离。
 
-## 5. Windows CI
+## 6. Windows CI
 
-M0 工作流只允许使用 GitHub 托管的 `windows-latest` Runner，不使用本机或自托管 Runner。工作流应：
+M0 工作流只使用 GitHub 托管的 `windows-latest` Runner，不使用本机或自托管 Runner。
+工作流执行：
 
 1. 仅检出当前 QFusion commit；
 2. 通过项目脚本安装锁定的项目本地工具链和依赖；
 3. 生成桌面图标和 OpenAPI 客户端并保持锁文件不变；
-4. 运行后端 lint、类型检查和测试；
-5. 运行前端 lint、类型检查、测试和 Web 构建；
+4. 运行后端 Ruff、mypy 和 pytest；
+5. 运行前端 Lint、类型检查、Vitest 和 Web 构建；
 6. 运行 Rust fmt、clippy 和 test；
-7. 构建后端可执行文件骨架与 Tauri NSIS 安装包；
-8. 上传两个独立构建产物。
+7. 完成 Nuitka standalone 编译并执行独立 EXE 健康烟雾测试；
+8. 构建 Tauri release 与 NSIS 空壳安装包；
+9. 仅在上述步骤全部成功后上传两个独立 Artifact。
 
-CI 成功不能替代干净 Windows 10/11 实机的安装、启动、升级和卸载烟雾测试。
+代码提交 `ed6fffdaa785e018ebf051d073b7cba070cac423` 的
+[Windows M0 Build run 30430746596](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30430746596)
+已通过：
 
-## 6. 当前限制
+- 22 项 pytest 与 2 项 Vitest 通过，Rust fmt、clippy 和 test 通过；
+- standalone EXE 为 `dist/backend/qfusion.dist/qfusion-backend.exe`，SHA-256 为
+  `b910fa57bb67b1a01046e9f13d552e3f28b0cf0607461805e94531caed50c1cb`；
+- EXE 在动态端口 52277 完成健康烟雾测试；
+- 生成 `QFusion Desktop_0.1.0_x64-setup.exe`；
+- 后端 Artifact ID 8716425226，ZIP SHA-256 为
+  `533980c0d22325d0dc0be35e287babbcf7ff3090692b47b62a612d035703a9b0`；
+- 桌面 Artifact ID 8716426029，ZIP SHA-256 为
+  `94b34f7486f66a915dbd5801b8ed364eb6a491de657269f9fc83e050d94a74b4`。
 
-当前工作区尚未验证：
+CI 成功不能替代干净 Windows 10/11 实机的安装、首次启动、升级和卸载烟雾测试。
 
-- Windows Runner 构建；
-- Sidecar 打包和动态端口握手；
-- WebView2 检测；
-- 安装/升级/卸载；
+## 7. 当前限制
+
+尚未验证或实现：
+
+- 将 Nuitka 后端作为 Tauri Sidecar 打入同一安装包并自动启动；
+- 临时会话令牌、动态端口握手、Sidecar 崩溃恢复和单写入实例锁；
+- 干净 Windows 10/11 上的安装、首次启动、升级、卸载和用户数据保留；
+- WebView2 缺失场景的检测与引导；
 - Windows Credential Manager；
-- 无 Python 环境启动。
+- 最终安装包在完全没有 Python/Node.js/Rust 的机器上运行；
+- 正式发行签名、更新渠道和长期 Artifact 保留。
 
-已在 Linux 验证 Nuitka standalone 后端能够启动并返回健康响应；Tauri CLI 能解析 M0 配置。当前 Linux 主机缺少 WebKitGTK/Pango/GDK/RSVG2 开发库，因此 Linux 不承担原生 Tauri 编译；Rust/Tauri 验证转移到隔离的 Windows Runner。
+Tauri bundler 在 Runner 内下载其公开发布的 NSIS 3.11 与
+`nsis-tauri-utils` 0.5.3，并执行自身的包验证；本项目没有额外维护这两个传递构建工具的
+独立 SHA-256 清单。正式发布前应把该供应链验证提升为可审计的发布门禁。
 
-这些项目在真实命令或 CI 有证据前不得标记通过。
+因此，当前证据证明“M0 空壳安装包可在真实 GitHub Windows Runner 构建”和“独立后端
+EXE 可运行”，不代表 M8 Windows 正式部署已经完成。

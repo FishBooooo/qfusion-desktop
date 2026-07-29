@@ -1,7 +1,7 @@
 # QFusion Desktop 路线图
 
-状态：M0 基线已创建，等待 Windows CI/安装包验收  
-最后更新：2026-07-27  
+状态：M0 验收候选已通过 GitHub 托管 CI，Draft PR #1 待审查合并
+最后更新：2026-07-29
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
 ## 里程碑门禁
@@ -20,7 +20,7 @@
 - [x] 创建合成 Mock 股票分析页
 - [x] 创建统一 Linux 开发命令
 - [x] 创建 Linux CI 与 Windows 构建骨架
-- [x] 运行当前环境能够支持的测试并记录缺口
+- [x] 运行 M0 所需的 Linux 与 Windows 验证并记录证据
 
 退出条件：
 
@@ -29,35 +29,57 @@
 3. Windows CI 能构建空安装包；必须由真实 Windows Runner 验证。
 4. 前端能显示 Mock 数据并报告后端在线或离线状态。
 
-当前证据：
+### 验收候选
 
-- 后端 Ruff、mypy、8 项 pytest 和 Nuitka standalone 健康烟雾测试通过；
-- 前端 ESLint/Prettier、TypeScript、2 项 Vitest、生产构建和 1 项 Playwright 前后端集成测试通过；
+验证对象为 `fix/m0-ci-isolation` 分支代码提交
+`ed6fffdaa785e018ebf051d073b7cba070cac423`。变更通过
+[Draft PR #1](https://github.com/FishBooooo/qfusion-desktop/pull/1) 提交审查，尚未合并到
+`main`。
+
+Linux 证据来自 GitHub 托管 `ubuntu-latest`：
+[CI run 30430746448](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30430746448)。
+
+- Ruff 与 mypy 通过，mypy 检查 27 个 Python 源文件。
+- 22 项 pytest 全部通过；保留 1 条 Starlette `TestClient` 弃用警告。
+- OpenAPI 与生成客户端重新生成后无差异。
+- ESLint、Prettier、两套 TypeScript 检查、2 项 Vitest 和 Vite 生产构建通过。
+- Playwright 前后端集成测试 1 项通过。后端 PID 2937 使用动态端口 37125，前端 PID
+  2944 使用动态端口 41371；均只绑定 Runner 自身 `127.0.0.1`，记录工作目录并通过持有
+  的子进程句柄核验身份后停止。
 - Node 22.23.1、pnpm 10.13.1、uv 0.11.16、Rust 1.97.1/rustup 1.29.0 与 just
-  1.50.0 已通过 SHA-256 校验安装到仓库内；缓存、临时文件和工具链均使用项目路径；
-- 当前 `node_modules` 仍记录仓库外 pnpm Store。为避免清空或替换已有依赖，bootstrap
-  已按隔离规则输出 `BLOCKED_BY_HOST_ISOLATION` 并停止；
-- 已在仓库内临时副本使用独立 Store 从零安装锁定的 416 个包；28 个直接依赖版本、
-  完整锁哈希和生成客户端均一致，前端 Lint、类型检查、2 项 Vitest 与生产构建通过，
-  且原 `node_modules` 的哈希、inode 和时间戳未变化。该证据不代表已迁移活动依赖树；
-- pnpm 隔离检查器已支持 pnpm 10 的项目内 `store/v10` 元数据，并拒绝未版本化、其他
-  版本、路径穿越、仓库外和符号链接路径；14 项边界测试通过，当前外部 Store 活动树仍
-  按预期阻断；
-- Gate A 已使用最终项目 Store `.cache/pnpm/store/v10` 从锁文件下载 416 个包且外部
-  Store 复用为 0；28 个直接依赖、完整锁、OpenAPI 和生成客户端均一致，1,311 个候选
-  链接全部留在候选工作区，离线幂等安装、Lint、类型检查、2 项 Vitest 与生产构建通过；
-  活动依赖树仍未迁移且哈希、inode 和时间戳未变化；
-- Tauri CLI 成功解析应用、CSP 和 bundler 配置，Rust fmt 与锁定元数据通过；
-- 本 Linux 主机缺少 `pango`、`gdk-3.0`、`webkit2gtk-4.1` 和 `rsvg2`，因此原生 `cargo check/test/clippy` 未完成；
-- 当前目录尚不是 Git 仓库，Windows GitHub Actions 工作流尚未被实际触发。
+  1.50.0 均由仓库内版本清单和 SHA-256 约束，缓存、临时文件与工具链使用项目路径。
 
-因此 M0 尚不能标记完成，也不能进入 M1。
+Windows 证据来自 GitHub 托管 `windows-latest`：
+[Windows M0 Build run 30430746596](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30430746596)。
+
+- Rust fmt、clippy 和 test 通过；当前 Rust 空壳没有业务单元测试。
+- Ruff、mypy、22 项 pytest、前端 Lint、类型检查、2 项 Vitest 和生产构建通过。
+- Nuitka standalone 实际完成编译与链接，输出
+  `dist/backend/qfusion.dist/qfusion-backend.exe`。构建清单记录的可执行文件 SHA-256
+  为 `b910fa57bb67b1a01046e9f13d552e3f28b0cf0607461805e94531caed50c1cb`。
+- 独立后端可执行文件在动态 `127.0.0.1:52277` 上完成健康烟雾测试；测试记录 PID
+  7032、启动时间、工作目录和用途，校验文件哈希及精确 M0 健康响应后核验进程身份并停止。
+- Tauri release 构建完成，生成
+  `apps/desktop/src-tauri/target/release/bundle/nsis/QFusion Desktop_0.1.0_x64-setup.exe`。
+- 后端构建产物 ID 8716425226，GitHub Artifact ZIP SHA-256 为
+  `533980c0d22325d0dc0be35e287babbcf7ff3090692b47b62a612d035703a9b0`。
+- NSIS 空壳安装包产物 ID 8716426029，GitHub Artifact ZIP SHA-256 为
+  `94b34f7486f66a915dbd5801b8ed364eb6a491de657269f9fc83e050d94a74b4`。
+- 两个产物当前计划于 2026-10-27 到期；它们是 M0 验收证据，不是正式发行版。
+
+本机现有 `node_modules` 仍记录仓库外 pnpm Store。它没有被清空、迁移或用于上述 CI；
+GitHub 托管 Runner 从锁文件在独立工作区重建依赖，因此 M0 候选验证不会读取或改变宿主
+旧依赖树。Gate B 活动依赖树迁移仍未授权，也不是本次 M0 CI 修复的一部分。
+
+该候选已满足 M0 的四项技术退出条件。由于证据提交仍位于 Draft PR，`main` 尚未包含
+修复；在 PR 审查并合并或用户明确验收前，不进入 M1。
 
 ## M1：本地存储与数据契约
 
-建立 SQLite、DuckDB、Parquet、Repository Interface、迁移、备份恢复和 `AnalysisSnapshot`。所有事实必须包含来源、时间、修订、质量和版本字段。
+建立 SQLite、DuckDB、Parquet、Repository Interface、迁移、备份恢复和
+`AnalysisSnapshot`。所有事实必须包含来源、时间、修订、质量和版本字段。
 
-入口条件：M0 退出条件全部满足。  
+入口条件：M0 退出条件全部满足且验收候选已进入目标分支。
 退出条件：可写入并查询 Mock 日线、分钟线、公告和新闻，且能生成可复现快照。
 
 ## M2：首批数据适配器
@@ -86,4 +108,4 @@
 
 ## M8：Windows 正式打包
 
-在干净 Windows 10/11 环境完成 Sidecar 打包、NSIS 安装、升级、卸载、备份恢复和烟雾测试。卸载默认保留用户数据。
+在干净 Windows 10/11 环境完成 Sidecar 集成、NSIS 安装、首次启动、升级、卸载、备份恢复和烟雾测试。卸载默认保留用户数据。
