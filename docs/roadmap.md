@@ -1,12 +1,13 @@
 # QFusion Desktop 路线图
 
-状态：M0 已通过 GitHub 托管 CI 并正式合并到 main
+状态：M1 进行中；M1-A Point-in-Time 数据契约已合并
 最后更新：2026-07-29
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
 ## 里程碑门禁
 
-任何里程碑只有在退出条件有实际测试证据后才能标记完成。未运行的 Windows、供应商或金融逻辑测试必须明确保留为限制，不能用静态检查替代。
+任何里程碑只有在退出条件有实际测试证据后才能标记完成。未运行的 Windows、供应商或金融
+逻辑测试必须明确保留为限制，不能用静态检查替代。
 
 ## M0：项目基线
 
@@ -69,10 +70,9 @@ Windows 证据来自 GitHub 托管 `windows-latest`：
 
 本机现有 `node_modules` 仍记录仓库外 pnpm Store。它没有被清空、迁移或用于上述 CI；
 GitHub 托管 Runner 从锁文件在独立工作区重建依赖，因此 M0 候选验证不会读取或改变宿主
-旧依赖树。Gate B 活动依赖树迁移仍未授权，也不是本次 M0 CI 修复的一部分。
+旧依赖树。Gate B 活动依赖树迁移仍未授权，也不是 M0 CI 修复的一部分。
 
-PR #1 已满足 M0 的四项技术退出条件且正式进入 `main`，因此 M0 已完成验收。本次任务
-只关闭 M0 门禁，没有实现任何 M1 存储、数据库或数据契约功能。
+PR #1 已满足 M0 的四项技术退出条件且正式进入 `main`，因此 M0 已完成验收。
 
 ## M1：本地存储与数据契约
 
@@ -82,17 +82,67 @@ PR #1 已满足 M0 的四项技术退出条件且正式进入 `main`，因此 M0
 入口条件：已满足；M0 验收提交已进入 `main`。
 退出条件：可写入并查询 Mock 日线、分钟线、公告和新闻，且能生成可复现快照。
 
+### M1-A：Point-in-Time 契约基线
+
+[PR #3](https://github.com/FishBooooo/qfusion-desktop/pull/3) 已审查并 squash 合并到
+`main` 提交 `af47840c35c7534e4c70438a44509aded1c9162b`。
+
+已完成：
+
+- [x] 不可变、禁止未知字段的 `DataSourceRecord` 和 `AnalysisSnapshot`；
+- [x] 永久 UUID 标识、来源、版本、修订、质量、复权和原始载荷哈希字段；
+- [x] UTC 时间规范化和事实时间顺序校验；
+- [x] `available_at <= decision_time` Repository 返回守卫；
+- [x] 美股、港股市场时区与全部 as-of 时间校验；
+- [x] `FactReadRepository` 与 `SnapshotRepository` Protocol；
+- [x] 两份由 Pydantic 确定性生成的 JSON Schema 和 CI 漂移检查；
+- [x] Linux 与 Windows 托管契约验证。
+
+Linux 证据：
+[CI run 30451185229](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30451185229)。
+
+- Ruff、29 个源文件的 mypy、38 项 pytest 和 100% 覆盖率通过；
+- 保留 1 条已知 Starlette `TestClient` 弃用警告；
+- OpenAPI、生成客户端和两份领域 Schema 重新生成后无差异；
+- 2 项 Vitest、Vite 构建和 1 项动态 Loopback Playwright 测试通过。
+
+Windows 证据：
+[Windows run 30451185054](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30451185054)。
+
+- Rust fmt/clippy/test、Ruff、mypy、38 项 pytest、前端 Lint/类型检查/测试通过；
+- Nuitka EXE 在 Runner 自身动态端口 `52889` 完成健康烟雾测试，受控 PID 为 `7836`；
+- EXE SHA-256 为
+  `8ccbe838c4c17a0f2f94333eb5c0e1f8d146858decafa32ded57b42c39c71d2f`；
+- Tauri NSIS 构建完成；
+- 后端 Artifact ID 8724787171，ZIP SHA-256 为
+  `c72c9e628d8cec76a49e958235c088a98e1a848f632327aecd276834dd235859`；
+- 桌面 Artifact ID 8724787865，ZIP SHA-256 为
+  `dba3cf724cbe3d49c722369bc1b7a6e6b47250713643586f7b06b14cdd574ce9`；
+- 两个产物计划于 2026-10-27 到期，仅作为 M1-A 回归证据。
+
+M1-A 没有新增依赖、修改锁文件、创建数据库或实现任何供应商、模型、风险、订单或真实金融
+调用。M1 尚未完成，剩余范围包括：
+
+- [ ] SQLite 元数据 Schema 与 Alembic 迁移；
+- [ ] DuckDB/Parquet 分析存储和单写入队列；
+- [ ] Repository 物理实现与 Mock 日线、分钟线、公告、新闻读写；
+- [ ] 可复现快照构建服务；
+- [ ] 备份与恢复。
+
 ## M2：首批数据适配器
 
-实现 SEC、FRED、一个美股行情源、一个港股行情源和必要的 Mock Adapter。逐一验证许可、字段、限流、时区、休市和延迟状态。
+实现 SEC、FRED、一个美股行情源、一个港股行情源和必要的 Mock Adapter。逐一验证许可、
+字段、限流、时区、休市和延迟状态。
 
 ## M3：因子和特征系统
 
-实现版本化的技术、基本面、宏观、事件、期权、板块宽度与主题特征。建立 Point-in-Time 和无泄漏测试。
+实现版本化的技术、基本面、宏观、事件、期权、板块宽度与主题特征。建立 Point-in-Time
+和无泄漏测试。
 
 ## M4：三套独立模型 V0
 
-实现华尔街规则模型、量化基线和游资状态机。三者只使用同一快照，独立运行、分别持久化、均可输出 `NO_TRADE`。
+实现华尔街规则模型、量化基线和游资状态机。三者只使用同一快照，独立运行、分别持久化、
+均可输出 `NO_TRADE`。
 
 ## M5：融合与风险引擎
 
@@ -108,4 +158,5 @@ PR #1 已满足 M0 的四项技术退出条件且正式进入 `main`，因此 M0
 
 ## M8：Windows 正式打包
 
-在干净 Windows 10/11 环境完成 Sidecar 集成、NSIS 安装、首次启动、升级、卸载、备份恢复和烟雾测试。卸载默认保留用户数据。
+在干净 Windows 10/11 环境完成 Sidecar 集成、NSIS 安装、首次启动、升级、卸载、备份恢复
+和烟雾测试。卸载默认保留用户数据。
