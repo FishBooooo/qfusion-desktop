@@ -1,6 +1,6 @@
 # 数据模型基线
 
-状态：M1-A 版本化领域契约；尚未创建物理数据库 Schema
+状态：M1-B SQLite 快照元数据 Schema；分析事实仓库尚未实现
 最后更新：2026-07-29
 
 ## 1. 标识原则
@@ -119,6 +119,18 @@ adjustment_type
 - DuckDB/Parquet：高体量时间序列、特征、标签、预测和回测明细。
 - Raw Store：未加工响应和原始文档，以内容哈希去重。
 
-本切片只建立领域契约与 Repository Interface，未引入 SQLite、DuckDB、Parquet、Alembic
-迁移、备份恢复或物理表。后续 M1 存储实现必须以迁移和 Repository 契约测试落地，禁止
-业务逻辑直接依赖具体数据库。
+M1-B 已用 Alembic 建立两个 SQLite 表：
+
+| 表 | 用途 | 关键约束 |
+| --- | --- | --- |
+| `analysis_snapshots` | 完整快照元数据与内容指纹 | UUID 主键、UTC 时间、as-of 不晚于决策时间、市场/时区配对、质量范围 |
+| `analysis_snapshot_facts` | 指向分析仓库事实的跨存储 UUID 引用 | 复合主键；删除快照只级联引用行 |
+
+`provider_versions`、`dataset_versions`、`missing_data` 与 `stale_data` 使用 SQLite
+JSON 列保存，但读取后必须重新通过 Pydantic 校验。所有时间由 SQLAlchemy
+`UTCDateTime` 写成无时区 UTC、读回为带 UTC 时区值。Repository 还重新计算
+`content_fingerprint`，拒绝静默损坏或被外部修改的行。
+
+`analysis_snapshot_facts.fact_id` 有查询索引但没有 SQLite 外键，因为目标事实属于后续
+DuckDB/Parquet/Raw Store。当前切片没有把 `DataSourceRecord.payload` 放入 SQLite，也
+没有实现分析事实写入、快照构建、备份或恢复。
