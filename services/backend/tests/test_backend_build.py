@@ -6,7 +6,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
 from scripts import build_backend, smoke_backend_standalone
 
 SERVER_DIALECT_PACKAGES = (
