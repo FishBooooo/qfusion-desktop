@@ -107,7 +107,7 @@ def _resolve_existing_directory(path: Path, label: str) -> Path:
         raise ValueError(f"{label} must be absolute")
     if not path.is_dir() or path.is_symlink():
         raise ValueError(f"{label} must be an existing non-symlink directory")
-    normalized = Path(os.path.abspath(path))
+    normalized = path.absolute()
     resolved = path.resolve(strict=True)
     if os.path.normcase(str(normalized)) != os.path.normcase(str(resolved)):
         raise ValueError(f"{label} must not traverse a symlink")
@@ -128,7 +128,7 @@ def _resolve_regular_file(root: Path, relative: PurePosixPath, label: str) -> Pa
     candidate = root.joinpath(*relative.parts)
     if not candidate.is_file() or candidate.is_symlink():
         raise FactIntegrityError(f"{label} must be a regular non-symlink file")
-    normalized = Path(os.path.abspath(candidate))
+    normalized = candidate.absolute()
     resolved = candidate.resolve(strict=True)
     if (
         os.path.normcase(str(normalized)) != os.path.normcase(str(resolved))
@@ -306,18 +306,17 @@ class DuckDBFactRepository:
                 """,
                 rows,
             )
-            connection.execute(
-                f"""
-                COPY (
-                    SELECT fact_id, instrument_id, fact_type, available_at,
-                           batch_id, record_json, content_sha256
-                    FROM source_facts
-                    WHERE batch_id = {_sql_string(str(batch_id))}
-                    ORDER BY fact_id
-                ) TO {_sql_string(str(temporary_path))}
-                (FORMAT PARQUET, COMPRESSION ZSTD)
+            batch_relation = connection.sql(
                 """
+                SELECT fact_id, instrument_id, fact_type, available_at,
+                       batch_id, record_json, content_sha256
+                FROM source_facts
+                WHERE batch_id = ?
+                ORDER BY fact_id
+                """,
+                params=[str(batch_id)],
             )
+            batch_relation.write_parquet(str(temporary_path), compression="zstd")
             if not temporary_path.is_file() or temporary_path.is_symlink():
                 raise FactIntegrityError("DuckDB did not create a regular Parquet archive")
             archived_count = connection.execute(
@@ -327,7 +326,7 @@ class DuckDBFactRepository:
             if archived_count is None or archived_count[0] != len(records):
                 raise FactIntegrityError("Parquet archive row count does not match the batch")
             archive_sha256 = _sha256(temporary_path)
-            os.replace(temporary_path, final_path)
+            temporary_path.replace(final_path)
             moved_archive = True
             connection.execute(
                 """
@@ -382,28 +381,27 @@ class DuckDBFactRepository:
             final_path.unlink(missing_ok=True)
 
     def _list_as_of_sync(self, query: FactQuery) -> tuple[DataSourceRecord, ...]:
-        predicates = ["available_at <= ?"]
-        parameters: list[object] = [query.decision_time]
-        if query.instrument_ids:
-            placeholders = ", ".join("?" for _ in query.instrument_ids)
-            predicates.append(f"instrument_id IN ({placeholders})")
-            parameters.extend(str(value) for value in query.instrument_ids)
-        if query.fact_types:
-            placeholders = ", ".join("?" for _ in query.fact_types)
-            predicates.append(f"fact_type IN ({placeholders})")
-            parameters.extend(query.fact_types)
-
+        instrument_ids = [str(value) for value in query.instrument_ids]
+        fact_types = list(query.fact_types)
         connection = self._connect()
         try:
             rows = connection.execute(
                 """
                 SELECT fact_id, instrument_id, fact_type, available_at,
                        record_json, content_sha256
-                FROM source_facts WHERE
-                """
-                + " AND ".join(predicates)
-                + " ORDER BY available_at, fact_id",
-                parameters,
+                FROM source_facts
+                WHERE available_at <= ?
+                  AND (? OR list_contains(CAST(? AS VARCHAR[]), instrument_id))
+                  AND (? OR list_contains(CAST(? AS VARCHAR[]), fact_type))
+                ORDER BY available_at, fact_id
+                """,
+                [
+                    query.decision_time,
+                    not instrument_ids,
+                    instrument_ids,
+                    not fact_types,
+                    fact_types,
+                ],
             ).fetchall()
         finally:
             connection.close()
