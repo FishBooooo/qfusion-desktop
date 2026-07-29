@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from scripts.check_uv_lock_update import (
     load_package_versions,
     main,
