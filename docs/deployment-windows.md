@@ -1,7 +1,7 @@
 # Windows 部署基线
 
-状态：M0 GitHub 托管 Windows 构建与独立后端烟雾测试已通过
-最后更新：2026-07-29
+状态：M1-B GitHub 托管 Windows standalone、迁移资产与 NSIS 验证已通过
+最后更新：2026-07-30
 
 ## 1. 交付目标
 
@@ -48,21 +48,31 @@ Windows 原生命令启用严格失败传播：任一外部可执行文件返回
 NSIS 构建，避免提交平台生成物或依赖宿主图形工具。
 
 Windows Nuitka 构建使用项目本地缓存，并启用内置 `pefile` 依赖扫描方式，避免下载或
-调用 Dependency Walker。构建成功后生成 `dist/backend/build-manifest.json`，记录相对
-可执行文件路径与 SHA-256。M0 的后端与桌面安装包仍是两个独立 Artifact；将 Sidecar
-复制为带 Tauri 目标三元组的 `externalBin` 并由桌面端启动属于 M8。
+调用 Dependency Walker。构建保留 Alembic 运行所需的 SQLAlchemy 服务端方言入口，只
+排除在当前 Runner 上导致编译内存问题且 QFusion 不使用的
+`sqlalchemy.dialects.oracle.dictionary` 模块；SQLite `pysqlite` 驱动必须显式包含。
+
+构建成功后生成 `dist/backend/build-manifest.json` schema v2，记录相对可执行文件路径、
+SHA-256、迁移目录、唯一 Alembic head、完整文件清单和逐文件 SHA-256。迁移资产复制到
+standalone 可执行文件旁的 `qfusion_migrations/`，运行时不依赖源码目录。M1-B 的后端
+与桌面安装包仍是两个独立 Artifact；将 Sidecar 复制为带 Tauri 目标三元组的
+`externalBin` 并由桌面端启动属于 M8。
 
 ## 4. 独立后端烟雾测试
 
 `scripts/smoke_backend_standalone.py` 只验证本次构建生成的 Windows 可执行文件：
 
-1. 解析构建清单，拒绝越出 `dist/backend` 的路径；
-2. 重新计算 SHA-256 并与清单比较；
-3. 由操作系统分配动态 `127.0.0.1` 端口；
-4. 记录 PID、启动时间、工作目录、端口和用途；
-5. 禁止 HTTP 重定向，只请求精确 `/api/v1/health`；
-6. 验证 M0 健康响应；
-7. 停止前再次核验所持进程对象和身份。
+1. 解析 schema v2 构建清单，拒绝绝对路径、父路径穿越和越出
+   `dist/backend` 的路径；
+2. 重新计算 standalone EXE SHA-256 并与清单比较；
+3. 验证迁移目录不是符号链接、位于可执行文件旁且文件清单完全一致；
+4. 逐个验证迁移资产 SHA-256，并要求清单只声明一个 Alembic head；
+5. 执行 compiled CLI 的 `--verify-migration-assets`，接受 Windows CRLF 或 POSIX LF，
+   但拒绝额外输出行；
+6. 由操作系统分配动态 `127.0.0.1` 端口；
+7. 记录 PID、启动时间、工作目录、端口和用途；
+8. 禁止 HTTP 重定向，只请求精确 `/api/v1/health` 并验证健康响应；
+9. 停止前再次核验所持进程对象和身份。
 
 日志与运行记录写入 Runner 当前仓库内的 `.tmp/`，不连接本机、局域网、科研服务或其他
 进程。
@@ -105,6 +115,21 @@ M0 工作流只使用 GitHub 托管的 `windows-latest` Runner，不使用本机
   `533980c0d22325d0dc0be35e287babbcf7ff3090692b47b62a612d035703a9b0`；
 - 桌面 Artifact ID 8716426029，ZIP SHA-256 为
   `94b34f7486f66a915dbd5801b8ed364eb6a491de657269f9fc83e050d94a74b4`。
+
+M1-B 的最终验证提交为 `03b1ea96e219dda90c33b02b56b8761352dc3e27`，来自
+[Windows run 30482961515](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30482961515)：
+
+- Rust fmt/clippy/test、Ruff、mypy、55 项 pytest 和 2 项 Vitest 通过；
+- Nuitka standalone EXE SHA-256 为
+  `2b100d7c7dbeb8369238e618a6082af5dfabfaa96c208802c3c8cd1a710629e9`；
+- 打包迁移 head 为 `0001_m1b_snapshots`，资产清单、逐文件哈希、compiled CLI
+  验证和动态健康烟雾测试通过；
+- 后端 PID 7280 使用动态端口 58994，测试完成后核验身份并停止；
+- 后端 Artifact ID 8738589874，大小 132,528,418 bytes，ZIP SHA-256 为
+  `948164b72be894bdffce243c3a88d73bb7ef38512f8e9186737d763a733b804e`；
+- NSIS Artifact ID 8738590202，大小 1,248,650 bytes，ZIP SHA-256 为
+  `c855c1046ff693b08771af59d044dc4277717c78c7b3bdc196bc727d29a4c07e`；
+- 两个产物计划于 2026-10-27 到期，仅作为回归证据。
 
 CI 成功不能替代干净 Windows 10/11 实机的安装、首次启动、升级和卸载烟雾测试。
 

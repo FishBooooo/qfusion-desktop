@@ -1,7 +1,7 @@
 # QFusion Desktop 路线图
 
-状态：M1 进行中；M1-A Point-in-Time 数据契约已合并
-最后更新：2026-07-29
+状态：M1 进行中；M1-A 数据契约与 M1-B SQLite 元数据已合并
+最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
 ## 里程碑门禁
@@ -121,9 +121,50 @@ Windows 证据：
 - 两个产物计划于 2026-10-27 到期，仅作为 M1-A 回归证据。
 
 M1-A 没有新增依赖、修改锁文件、创建数据库或实现任何供应商、模型、风险、订单或真实金融
-调用。M1 尚未完成，剩余范围包括：
+调用。
 
-- [ ] SQLite 元数据 Schema 与 Alembic 迁移；
+### M1-B：SQLite 快照元数据与迁移
+
+[PR #5](https://github.com/FishBooooo/qfusion-desktop/pull/5) 已审查并 squash 合并到
+`main` 提交 `985acd6f7629f6f26679101d6edb1bdd01e3c598`。
+
+已完成：
+
+- [x] SQLite `analysis_snapshots` 与 `analysis_snapshot_facts` 元数据表；
+- [x] 可逆、单一 head 的 Alembic 迁移与调用方注入连接；
+- [x] 不可变 Snapshot Repository、内容指纹校验、UTC 与外键约束；
+- [x] standalone 构建清单 v2、迁移资产清单、逐文件 SHA-256 与 head 校验；
+- [x] Windows 原生换行兼容的迁移验证与受控动态 Loopback 健康烟雾测试；
+- [x] 依赖锁守卫，确保所有既有锁定版本保持不变。
+
+Linux 证据：
+[CI run 30482961540](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30482961540)。
+
+- Ruff、34 个源文件的 mypy、55 项 pytest 和 99% 显示覆盖率通过；
+- 2 项 Vitest、Vite 生产构建和动态 Loopback Playwright E2E 通过；
+- E2E 后端 PID 2771 使用端口 34339，前端 PID 2778 使用端口 39729；两者均由测试
+  持有进程句柄并停止；
+- `uv.lock` 无漂移，全部既有包版本保持不变。
+
+Windows 证据：
+[Windows run 30482961515](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30482961515)。
+
+- Rust fmt/clippy/test、Ruff、mypy、55 项 pytest、前端 Lint/类型检查和 2 项 Vitest
+  全部通过；
+- Nuitka EXE SHA-256 为
+  `2b100d7c7dbeb8369238e618a6082af5dfabfaa96c208802c3c8cd1a710629e9`；
+- 打包迁移 head 为 `0001_m1b_snapshots`，迁移资产验证和动态健康烟雾测试通过；
+- 受控后端 PID 7280 使用动态端口 58994，并由测试核验身份后停止；
+- 后端 Artifact ID 8738589874，ZIP SHA-256 为
+  `948164b72be894bdffce243c3a88d73bb7ef38512f8e9186737d763a733b804e`；
+- NSIS Artifact ID 8738590202，ZIP SHA-256 为
+  `c855c1046ff693b08771af59d044dc4277717c78c7b3bdc196bc727d29a4c07e`；
+- 两个产物计划于 2026-10-27 到期，只作为 M1-B 回归证据。
+
+M1-B 只在 SQLite 保存快照元数据和跨存储事实引用，没有把高容量金融事实载荷写入
+SQLite，也没有接入供应商、模型、订单或真实金融数据。M1 尚未完成，剩余范围包括：
+
+- [x] SQLite 元数据 Schema 与 Alembic 迁移；
 - [ ] DuckDB/Parquet 分析存储和单写入队列；
 - [ ] Repository 物理实现与 Mock 日线、分钟线、公告、新闻读写；
 - [ ] 可复现快照构建服务；
