@@ -54,7 +54,7 @@ def _resolve_regular_raw_object(root: Path, relative: PurePosixPath) -> Path:
     candidate = root.joinpath(*relative.parts)
     if not candidate.is_file() or candidate.is_symlink():
         raise RawStoreIntegrityError("raw object must be a regular non-symlink file")
-    normalized = Path(os.path.abspath(candidate))
+    normalized = candidate.absolute()
     resolved = candidate.resolve(strict=True)
     if (
         os.path.normcase(str(normalized)) != os.path.normcase(str(resolved))
@@ -120,7 +120,7 @@ class ContentAddressedRawStore:
                 os.fsync(stream.fileno())
             if temporary.is_symlink() or not temporary.is_file():
                 raise RawStoreIntegrityError("raw store temporary object is not a regular file")
-            os.replace(temporary, target)
+            temporary.replace(target)
         except Exception:
             temporary.unlink(missing_ok=True)
             raise
