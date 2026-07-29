@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M1 进行中；M1-C 分析事实存储候选等待跨平台验证
+状态：M1 进行中；M1-D 可复现快照构建候选等待跨平台验证
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -176,12 +176,25 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 - [ ] Linux Runner 锁解析、Lint、类型检查、测试、构建与 E2E 全部通过；
 - [ ] Windows Runner 原生模块打包、测试、standalone 与 NSIS 全部通过。
 
+### M1-D：可复现 AnalysisSnapshot 构建候选
+
+当前堆叠分支已实现但尚未通过最终 Runner 门禁：
+
+- [x] 显式、可验证的 fact type 到快照数据类别政策；
+- [x] 目标 UUID、证券范围、市场、周期和 UTC 决策时间请求契约；
+- [x] Repository 查询后第二重 Point-in-Time 与范围守卫；
+- [x] 确定性 as-of、版本、缺失、过期、质量分数和内容指纹派生；
+- [x] 供应商/数据集版本冲突、重复事实、非法时钟和持久化失败处理；
+- [x] DuckDB Mock 事实到 SQLite 快照的真实 Repository 集成测试；
+- [ ] Linux Runner Lint、类型检查、测试、构建与 E2E 全部通过；
+- [ ] Windows Runner 测试、standalone Sidecar 与 NSIS 全部通过。
+
 M1 尚未完成，当前门禁为：
 
 - [x] SQLite 元数据 Schema 与 Alembic 迁移；
 - [ ] DuckDB/Parquet 分析存储和单写入队列（等待 M1-C 验证）；
 - [ ] Repository 物理实现与 Mock 日线、分钟线、公告、新闻读写（等待 M1-C 验证）；
-- [ ] 可复现快照构建服务；
+- [ ] 可复现快照构建服务（等待 M1-D 验证）；
 - [ ] 备份与恢复。
 
 ## M2：首批数据适配器
