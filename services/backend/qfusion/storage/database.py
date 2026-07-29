@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import event
-from sqlalchemy.engine import Engine, URL, create_engine
+from sqlalchemy.engine import URL, Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
