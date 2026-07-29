@@ -49,6 +49,7 @@
     "apps/desktop/src-tauri/app-icon.svg",
     "apps/desktop/src-tauri/Cargo.lock",
     "apps/desktop/src-tauri/tauri.conf.json",
+    "scripts/smoke_backend_standalone.py",
     "scripts/validate_workspace.py",
     ".github/workflows/ci.yml",
     ".github/workflows/windows-release.yml"

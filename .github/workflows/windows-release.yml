@@ -11,6 +11,7 @@ on:
       - "scripts/build_windows.ps1"
       - "scripts/install_tools_windows.ps1"
       - "scripts/qfusion_env.ps1"
+      - "scripts/smoke_backend_standalone.py"
       - "scripts/toolchain-versions.json"
       - "pyproject.toml"
       - "package.json"
