@@ -20,6 +20,13 @@ OUTPUT_DIRECTORY = REPOSITORY_ROOT / "dist" / "backend"
 BUILD_MANIFEST = OUTPUT_DIRECTORY / "build-manifest.json"
 NUITKA_CACHE_DIRECTORY = REPOSITORY_ROOT / ".cache" / "nuitka"
 BUNDLED_MIGRATIONS_DIRECTORY_NAME = "qfusion_migrations"
+SQLALCHEMY_SQLITE_DRIVER_MODULE = "sqlalchemy.dialects.sqlite.pysqlite"
+SQLALCHEMY_UNUSED_DIALECT_PACKAGES = (
+    "sqlalchemy.dialects.mssql",
+    "sqlalchemy.dialects.mysql",
+    "sqlalchemy.dialects.oracle",
+    "sqlalchemy.dialects.postgresql",
+)
 
 
 def _sha256(filename: Path) -> str:
@@ -124,15 +131,12 @@ def _copy_migration_assets(destination: Path) -> list[dict[str, str]]:
     return records
 
 
-def main() -> None:
-    """Build a self-contained backend without using host or user caches."""
+def _build_nuitka_command(
+    executable_name: str, *, system_name: str | None = None
+) -> tuple[list[str], str]:
+    """Build the audited Nuitka command for the Local Lite backend."""
 
-    executable_name = "qfusion-backend.exe" if platform.system() == "Windows" else "qfusion-backend"
-    OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    NUITKA_CACHE_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    BUILD_MANIFEST.unlink(missing_ok=True)
-    migration_heads = verify_migration_assets()
-
+    selected_system = system_name or platform.system()
     command = [
         sys.executable,
         "-m",
@@ -143,12 +147,38 @@ def main() -> None:
         "--python-flag=-m",
     ]
     dependency_scanner = "platform-default"
-    if platform.system() == "Windows":
+    if selected_system == "Windows":
         # Nuitka 2.8 provides an inline pefile scanner. Selecting it avoids the
         # unverified Dependency Walker download and its HTTP fallback entirely.
         command.append("--experimental=force-dependencies-pefile")
         dependency_scanner = "nuitka-inline-pefile"
+
+    # M1 Local Lite supports SQLite only. SQLAlchemy discovers dialects at runtime,
+    # so explicitly retain pysqlite and exclude the unused server backends. This
+    # keeps the standalone artifact aligned with the accepted storage boundary and
+    # avoids compiling large, unreachable dialect modules.
+    command.append(f"--include-module={SQLALCHEMY_SQLITE_DRIVER_MODULE}")
+    command.extend(
+        f"--nofollow-import-to={package_name}"
+        for package_name in SQLALCHEMY_UNUSED_DIALECT_PACKAGES
+    )
     command.append(str(PACKAGE_DIRECTORY))
+    return command, dependency_scanner
+
+
+def main() -> None:
+    """Build a self-contained backend without using host or user caches."""
+
+    system_name = platform.system()
+    executable_name = "qfusion-backend.exe" if system_name == "Windows" else "qfusion-backend"
+    OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    NUITKA_CACHE_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    BUILD_MANIFEST.unlink(missing_ok=True)
+    migration_heads = verify_migration_assets()
+    command, dependency_scanner = _build_nuitka_command(
+        executable_name,
+        system_name=system_name,
+    )
 
     build_environment = os.environ.copy()
     build_environment["NUITKA_CACHE_DIR"] = str(NUITKA_CACHE_DIRECTORY)
@@ -171,6 +201,7 @@ def main() -> None:
         "schema_version": 2,
         "artifact_type": "nuitka-standalone",
         "dependency_scanner": dependency_scanner,
+        "sqlalchemy_dialects": ["sqlite"],
         "executable": executable.relative_to(REPOSITORY_ROOT).as_posix(),
         "sha256": _sha256(executable),
         "migration_assets": {
