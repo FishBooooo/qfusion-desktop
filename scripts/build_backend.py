@@ -111,7 +111,10 @@ def _copy_migration_assets(destination: Path) -> list[dict[str, str]]:
         shutil.copyfile(source_file, target_file)
         source_sha256 = _sha256(source_file)
         if _sha256(target_file) != source_sha256:
-            raise RuntimeError(\n                "Copied migration asset failed SHA-256 verification: "\n                f"{relative_path}"\n            )
+            raise RuntimeError(
+                "Copied migration asset failed SHA-256 verification: "
+                f"{relative_path}"
+            )
         records.append(
             {
                 "path": relative_path.as_posix(),
