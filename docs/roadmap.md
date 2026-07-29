@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M0 验收候选已通过 GitHub 托管 CI，Draft PR #1 待审查合并
+状态：M0 已通过 GitHub 托管 CI 并正式合并到 main
 最后更新：2026-07-29
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -29,12 +29,12 @@
 3. Windows CI 能构建空安装包；必须由真实 Windows Runner 验证。
 4. 前端能显示 Mock 数据并报告后端在线或离线状态。
 
-### 验收候选
+### 正式验收
 
-验证对象为 `fix/m0-ci-isolation` 分支代码提交
-`ed6fffdaa785e018ebf051d073b7cba070cac423`。变更通过
-[Draft PR #1](https://github.com/FishBooooo/qfusion-desktop/pull/1) 提交审查，尚未合并到
-`main`。
+验证代码提交为 `ed6fffdaa785e018ebf051d073b7cba070cac423`，验收文档提交为
+`d90d07f74cb9159199b89a9833bbd2350a603ab7`。两者通过
+[PR #1](https://github.com/FishBooooo/qfusion-desktop/pull/1) 完成审查，并已 squash 合并到
+`main` 提交 `0741e40fe6ad2d527bd4a251672bb5f493f6baff`。
 
 Linux 证据来自 GitHub 托管 `ubuntu-latest`：
 [CI run 30430746448](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30430746448)。
@@ -71,15 +71,15 @@ Windows 证据来自 GitHub 托管 `windows-latest`：
 GitHub 托管 Runner 从锁文件在独立工作区重建依赖，因此 M0 候选验证不会读取或改变宿主
 旧依赖树。Gate B 活动依赖树迁移仍未授权，也不是本次 M0 CI 修复的一部分。
 
-该候选已满足 M0 的四项技术退出条件。由于证据提交仍位于 Draft PR，`main` 尚未包含
-修复；在 PR 审查并合并或用户明确验收前，不进入 M1。
+PR #1 已满足 M0 的四项技术退出条件且正式进入 `main`，因此 M0 已完成验收。本次任务
+只关闭 M0 门禁，没有实现任何 M1 存储、数据库或数据契约功能。
 
 ## M1：本地存储与数据契约
 
 建立 SQLite、DuckDB、Parquet、Repository Interface、迁移、备份恢复和
 `AnalysisSnapshot`。所有事实必须包含来源、时间、修订、质量和版本字段。
 
-入口条件：M0 退出条件全部满足且验收候选已进入目标分支。
+入口条件：已满足；M0 验收提交已进入 `main`。
 退出条件：可写入并查询 Mock 日线、分钟线、公告和新闻，且能生成可复现快照。
 
 ## M2：首批数据适配器
