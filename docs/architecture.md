@@ -1,7 +1,7 @@
 # QFusion Desktop 架构基线
 
-状态：M0 基线  
-最后更新：2026-07-27  
+状态：M1-A 版本化领域契约已落地，物理存储尚未实现
+最后更新：2026-07-29
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
 ## 1. 目标与边界
@@ -50,7 +50,9 @@ Tauri Desktop
                       └─ raw file store
 ```
 
-正式桌面运行时只监听 `127.0.0.1`，由 Tauri 为每次会话生成临时令牌并启动 Sidecar。Sidecar 选择随机空闲端口，通过受控握手把端口和健康状态交给桌面端。M0 开发演示暂用固定端口 `8000`；这不是正式部署契约。
+正式桌面运行时只监听 `127.0.0.1`，由 Tauri 为每次会话生成临时令牌并启动 Sidecar。
+Sidecar 选择随机空闲端口，通过受控握手把端口和健康状态交给桌面端。当前开发演示仍使用
+M0 健康端点；正式 Sidecar 握手不属于 M1-A。
 
 ## 4. 后端分层
 
@@ -66,7 +68,8 @@ Domain contracts and rules
 Provider adapters / Repository implementations
 ```
 
-- `domain`：纯业务类型、规则和接口，不依赖 FastAPI、供应商 SDK 或具体数据库。
+- `domain`：纯业务类型、规则和 Repository Protocol，不依赖 FastAPI、供应商 SDK 或
+  具体数据库。
 - `providers`：外部数据源 Adapter；不得从路由或模型直接调用供应商。
 - `storage`：Repository 实现、迁移和单写入队列。
 - `snapshots`：构建不可变、可追溯的分析快照。
@@ -75,6 +78,16 @@ Provider adapters / Repository implementations
 - `api`：Pydantic 边界验证和 HTTP 映射，不承载金融业务计算。
 
 业务逻辑不直接读取环境变量。配置只在组合根加载，并以类型化设置传入。
+
+M1-A 已在 Domain 层定义：
+
+- 带完整来源、版本、时间、修订、质量和载荷哈希的 `DataSourceRecord`；
+- 显式携带 `decision_time` 的 `FactQuery`；
+- 三套独立模型共享的不可变 `AnalysisSnapshot`；
+- `FactReadRepository` 与 `SnapshotRepository` Protocol。
+
+具体 Repository 实现必须在返回后再次通过 Point-in-Time 守卫，不能依赖 SQL 正确性作为
+唯一的防前视边界。
 
 ## 5. 模型数据流
 
@@ -92,7 +105,10 @@ AnalysisSnapshot(snapshot_id)
                                   Final/Paper Report
 ```
 
-独立模型输出分别持久化。Fusion Packet 只包含融合所需的结构化字段和证据引用，不把自由文本报告当作主要输入。每一步记录输入版本、模型版本、参数版本和运行 ID。
+独立模型输出分别持久化。Fusion Packet 只包含融合所需的结构化字段和证据引用，不把自由
+文本报告当作主要输入。每一步记录输入版本、模型版本、参数版本和运行 ID。
+
+M1-A 只实现上图的事实与快照契约，没有实现快照构建服务、任何交易模型、融合或风险运行。
 
 ## 6. 存储边界
 
@@ -102,7 +118,9 @@ AnalysisSnapshot(snapshot_id)
 - 系统采用单写入器原则；并发读取可以存在，并发任务不能直接写同一个 DuckDB 文件。
 - 用户数据位于 `%LOCALAPPDATA%\QFusion\`，不写入安装目录。
 
-详细概念模型见 [data-model.md](data-model.md)，存储选择见 [ADR-0001](adr/0001-local-lite-storage.md)。
+上述仍是 ADR-0001 确定的目标映射。M1-A 没有创建数据库文件、物理表、迁移、写入队列或
+用户数据目录。详细契约见 [data-model.md](data-model.md)，存储选择见
+[ADR-0001](adr/0001-local-lite-storage.md)。
 
 ## 7. 前端边界
 
@@ -123,14 +141,20 @@ AnalysisSnapshot(snapshot_id)
 - 开发工具链、依赖缓存和临时文件必须保留在仓库内，并从不继承科研、Conda、ROS、
   CUDA、容器或用户代理环境；完整决策见 [ADR-0006](adr/0006-project-local-toolchains.md)。
 
-## 9. M0 验证范围
+## 9. 当前验证范围
 
-M0 只验证项目边界和工具链：
+M0 的 FastAPI 健康检查、React/Tauri 空壳、前后端 Mock 通信、Linux CI 和 Windows 构建
+基线继续有效。
 
-- FastAPI 健康检查可独立运行和测试；
-- React 页面能显示合成 Mock 分析并探测后端健康状态；
-- Tauri 空壳具有 Windows 构建配置；
-- Linux 命令、基础测试和 CI 工作流存在；
-- 不创建数据库、不调用供应商、不运行模型、不提交任何订单。
+M1-A 新增验证：
 
-后续里程碑不得在 M0 验收前提前实现。进度见 [roadmap.md](roadmap.md)。
+- Pydantic 类型和生成的 JSON Schema 必须确定性一致；
+- 所有时间必须带时区并规范化为 UTC；
+- `available_at` 晚于 `decision_time` 的事实必须被拒绝；
+- as-of 时间不能晚于快照决策时间；
+- UUID 永久标识、版本映射、缺失/过期数据和复权状态必须显式；
+- Repository Protocol 不依赖供应商或具体数据库；
+- Linux 与 Windows 托管 CI 同时执行契约测试；
+- 未创建数据库、供应商连接、模型、订单或真实金融调用。
+
+进度和测试证据见 [roadmap.md](roadmap.md)。
