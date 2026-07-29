@@ -44,20 +44,17 @@ def validate_lock_update(
 ) -> list[str]:
     """Return deterministic violations of the no-existing-version-change policy."""
 
-    errors: list[str] = []
     removed = sorted(set(before) - set(after))
-    for name in removed:
-        errors.append(f"existing package removed: {name} {before[name]}")
+    errors = [f"existing package removed: {name} {before[name]}" for name in removed]
 
-    for name in sorted(set(before) & set(after)):
-        if before[name] != after[name]:
-            errors.append(
-                f"existing package version changed: {name} {before[name]} -> {after[name]}"
-            )
+    errors.extend(
+        f"existing package version changed: {name} {before[name]} -> {after[name]}"
+        for name in sorted(set(before) & set(after))
+        if before[name] != after[name]
+    )
 
     unexpected = sorted(set(after) - set(before) - allowed_new)
-    for name in unexpected:
-        errors.append(f"unexpected new package: {name} {after[name]}")
+    errors.extend(f"unexpected new package: {name} {after[name]}" for name in unexpected)
 
     return errors
 
