@@ -12,6 +12,7 @@ license = { file = "LICENSE" }
 authors = [{ name = "QFusion Desktop contributors" }]
 dependencies = [
   "alembic>=1.18,<2",
+  "duckdb>=1.5,<2",
   "fastapi>=0.115,<1",
   "pydantic>=2.10,<3",
   "pydantic-settings>=2.7,<3",
