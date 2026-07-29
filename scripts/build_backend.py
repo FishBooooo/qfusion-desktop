@@ -21,11 +21,8 @@ BUILD_MANIFEST = OUTPUT_DIRECTORY / "build-manifest.json"
 NUITKA_CACHE_DIRECTORY = REPOSITORY_ROOT / ".cache" / "nuitka"
 BUNDLED_MIGRATIONS_DIRECTORY_NAME = "qfusion_migrations"
 SQLALCHEMY_SQLITE_DRIVER_MODULE = "sqlalchemy.dialects.sqlite.pysqlite"
-SQLALCHEMY_UNUSED_DIALECT_PACKAGES = (
-    "sqlalchemy.dialects.mssql",
-    "sqlalchemy.dialects.mysql",
-    "sqlalchemy.dialects.oracle",
-    "sqlalchemy.dialects.postgresql",
+SQLALCHEMY_EXCLUDED_MODULES = (
+    "sqlalchemy.dialects.oracle.dictionary",
 )
 
 
@@ -153,14 +150,15 @@ def _build_nuitka_command(
         command.append("--experimental=force-dependencies-pefile")
         dependency_scanner = "nuitka-inline-pefile"
 
-    # M1 Local Lite supports SQLite only. SQLAlchemy discovers dialects at runtime,
-    # so explicitly retain pysqlite and exclude the unused server backends. This
-    # keeps the standalone artifact aligned with the accepted storage boundary and
-    # avoids compiling large, unreachable dialect modules.
+    # M1 Local Lite explicitly retains pysqlite. Alembic imports its built-in
+    # DDL implementations at module initialization, so the SQLAlchemy server
+    # dialect entry points must remain importable even though QFusion never opens
+    # those databases. Exclude only Oracle's very large reflection dictionary,
+    # which is not imported by Alembic and previously exhausted MSVC pass 2.
     command.append(f"--include-module={SQLALCHEMY_SQLITE_DRIVER_MODULE}")
     command.extend(
-        f"--nofollow-import-to={package_name}"
-        for package_name in SQLALCHEMY_UNUSED_DIALECT_PACKAGES
+        f"--nofollow-import-to={module_name}"
+        for module_name in SQLALCHEMY_EXCLUDED_MODULES
     )
     command.append(str(PACKAGE_DIRECTORY))
     return command, dependency_scanner
