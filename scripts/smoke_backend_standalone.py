@@ -57,19 +57,102 @@ def _sha256(filename: Path) -> str:
     return digest.hexdigest()
 
 
-def _load_executable() -> tuple[Path, str]:
+def _manifest_relative_path(value: object, label: str) -> Path:
+    if not isinstance(value, str):
+        raise RuntimeError(f"Backend build manifest {label} must be a string.")
+    relative_path = Path(value)
+    if (
+        relative_path.is_absolute()
+        or not relative_path.parts
+        or ".." in relative_path.parts
+    ):
+        raise RuntimeError(f"Backend build manifest contains an unsafe {label}.")
+    return relative_path
+
+
+def _load_migration_assets(
+    manifest_value: dict[Any, Any],
+    executable: Path,
+) -> tuple[str, ...]:
+    migration_value = manifest_value.get("migration_assets")
+    if not isinstance(migration_value, dict):
+        raise RuntimeError("Backend build manifest is missing migration assets.")
+
+    relative_directory = _manifest_relative_path(
+        migration_value.get("directory"),
+        "migration directory",
+    )
+    unresolved_directory = REPOSITORY_ROOT / relative_directory
+    if unresolved_directory.is_symlink():
+        raise RuntimeError("Backend migration directory must not be a symlink.")
+    migration_directory = unresolved_directory.resolve(strict=True)
+    output_root = (REPOSITORY_ROOT / "dist" / "backend").resolve()
+    if (
+        not migration_directory.is_relative_to(output_root)
+        or migration_directory.parent != executable.parent
+        or migration_directory.name != "qfusion_migrations"
+    ):
+        raise RuntimeError("Backend migration directory is outside the standalone artifact.")
+
+    heads_value = migration_value.get("heads")
+    if (
+        not isinstance(heads_value, list)
+        or len(heads_value) != 1
+        or not all(isinstance(head, str) and head for head in heads_value)
+    ):
+        raise RuntimeError("Backend build manifest must declare exactly one migration head.")
+    expected_heads = tuple(heads_value)
+
+    files_value = migration_value.get("files")
+    if not isinstance(files_value, list) or not files_value:
+        raise RuntimeError("Backend build manifest contains no migration files.")
+
+    expected_files: set[str] = set()
+    for entry in files_value:
+        if not isinstance(entry, dict):
+            raise RuntimeError("Backend migration file records must be objects.")
+        relative_file = _manifest_relative_path(
+            entry.get("path"),
+            "migration file path",
+        )
+        expected_sha256 = entry.get("sha256")
+        if not isinstance(expected_sha256, str):
+            raise RuntimeError("Backend migration file record is missing SHA-256.")
+
+        unresolved_file = migration_directory / relative_file
+        if unresolved_file.is_symlink():
+            raise RuntimeError("Backend migration assets must not be symlinks.")
+        migration_file = unresolved_file.resolve(strict=True)
+        if not migration_file.is_relative_to(migration_directory) or not migration_file.is_file():
+            raise RuntimeError("Backend migration asset escaped its packaged directory.")
+        if _sha256(migration_file) != expected_sha256:
+            raise RuntimeError(
+                f"Backend migration asset SHA-256 mismatch: {relative_file.as_posix()}"
+            )
+        expected_files.add(relative_file.as_posix())
+
+    actual_files = {
+        path.relative_to(migration_directory).as_posix()
+        for path in migration_directory.rglob("*")
+        if path.is_file()
+    }
+    if actual_files != expected_files:
+        raise RuntimeError("Backend migration asset inventory does not match the build manifest.")
+    return expected_heads
+
+
+def _load_executable() -> tuple[Path, str, tuple[str, ...]]:
     manifest_value = json.loads(BUILD_MANIFEST.read_text(encoding="utf-8"))
     if not isinstance(manifest_value, dict):
         raise RuntimeError("Backend build manifest must be a JSON object.")
+    if manifest_value.get("schema_version") != 2:
+        raise RuntimeError("Backend build manifest schema is not supported.")
 
     relative_executable = manifest_value.get("executable")
     expected_sha256 = manifest_value.get("sha256")
-    if not isinstance(relative_executable, str) or not isinstance(expected_sha256, str):
-        raise RuntimeError("Backend build manifest is missing executable or SHA-256 fields.")
-
-    manifest_path = Path(relative_executable)
-    if manifest_path.is_absolute() or ".." in manifest_path.parts:
-        raise RuntimeError("Backend build manifest contains an unsafe executable path.")
+    manifest_path = _manifest_relative_path(relative_executable, "executable path")
+    if not isinstance(expected_sha256, str):
+        raise RuntimeError("Backend build manifest is missing executable SHA-256.")
 
     executable = (REPOSITORY_ROOT / manifest_path).resolve(strict=True)
     output_root = (REPOSITORY_ROOT / "dist" / "backend").resolve()
@@ -77,7 +160,37 @@ def _load_executable() -> tuple[Path, str]:
         raise RuntimeError("Backend executable is outside the generated artifact directory.")
     if _sha256(executable) != expected_sha256:
         raise RuntimeError("Backend executable SHA-256 does not match the build manifest.")
-    return executable, expected_sha256
+
+    migration_heads = _load_migration_assets(manifest_value, executable)
+    return executable, expected_sha256, migration_heads
+
+
+def _verify_migration_assets(
+    executable: Path,
+    expected_heads: tuple[str, ...],
+    environment: dict[str, str],
+) -> None:
+    arguments = [str(executable), "--verify-migration-assets"]
+    completed = subprocess.run(  # noqa: S603
+        arguments,
+        cwd=executable.parent,
+        env=environment,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=30.0,
+        check=False,
+    )
+    expected_output = (
+        f"QFUSION_MIGRATION_ASSETS_OK heads={','.join(expected_heads)}\n"
+    ).encode()
+    if completed.returncode != 0 or completed.stdout != expected_output:
+        stdout = completed.stdout.decode("utf-8", errors="replace")
+        stderr = completed.stderr.decode("utf-8", errors="replace")
+        raise RuntimeError(
+            "Standalone migration asset verification failed: "
+            f"exit={completed.returncode} stdout={stdout!r} stderr={stderr!r}"
+        )
 
 
 def _allocate_dynamic_port() -> int:
@@ -168,15 +281,9 @@ def _stop_owned_process(
 
 
 def main() -> None:
-    """Start, verify, and stop the exact backend process created by this smoke test."""
-    executable, executable_sha256 = _load_executable()
-    port = _allocate_dynamic_port()
-    health_url = f"http://127.0.0.1:{port}/api/v1/health"
-    run_directory = SMOKE_ROOT / uuid4().hex
-    run_directory.mkdir(parents=True)
-    log_path = run_directory / "backend.log"
-    journal_path = run_directory / "journal.json"
+    """Verify migration assets, then start and stop the exact owned backend process."""
 
+    executable, executable_sha256, migration_heads = _load_executable()
     environment = os.environ.copy()
     environment.update(
         {
@@ -184,20 +291,31 @@ def main() -> None:
             "QFUSION_HOST": "127.0.0.1",
             "QFUSION_LLM_MODE": "off",
             "QFUSION_LOG_LEVEL": "warning",
-            "QFUSION_PORT": str(port),
         }
     )
+    _verify_migration_assets(executable, migration_heads, environment)
+
+    port = _allocate_dynamic_port()
+    environment["QFUSION_PORT"] = str(port)
+    health_url = f"http://127.0.0.1:{port}/api/v1/health"
+    run_directory = SMOKE_ROOT / uuid4().hex
+    run_directory.mkdir(parents=True)
+    log_path = run_directory / "backend.log"
+    journal_path = run_directory / "journal.json"
+
     arguments = [str(executable)]
     process: subprocess.Popen[bytes] | None = None
     recorded_pid: int | None = None
     journal: dict[str, object] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "status": "starting",
-        "purpose": "QFusion Windows standalone health smoke",
+        "purpose": "QFusion Windows standalone migration and health smoke",
         "started_at": _utc_now(),
         "cwd": str(executable.parent),
         "executable": str(executable),
         "executable_sha256": executable_sha256,
+        "migration_heads": list(migration_heads),
+        "migration_assets_verified_at": _utc_now(),
         "port": port,
         "health_url": health_url,
     }
@@ -243,7 +361,8 @@ def main() -> None:
 
     print(
         "QFUSION_STANDALONE_SMOKE_OK "
-        f"pid={journal['pid']} port={port} sha256={executable_sha256}"
+        f"pid={journal['pid']} port={port} sha256={executable_sha256} "
+        f"migration_heads={','.join(migration_heads)}"
     )
 
 
