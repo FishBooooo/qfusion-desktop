@@ -158,9 +158,11 @@ def _stop_owned_process(
     process.terminate()
     try:
         process.wait(timeout=10.0)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as error:
         if process.pid != recorded_pid or process.args != expected_arguments:
-            raise RuntimeError("Refusing to force-stop a process whose held identity changed.")
+            raise RuntimeError(
+                "Refusing to force-stop a process whose held identity changed."
+            ) from error
         process.kill()
         process.wait(timeout=10.0)
 
