@@ -1,6 +1,6 @@
 # QFusion Desktop 架构基线
 
-状态：M1-C 分析事实存储候选，等待 Linux 与 Windows 验证
+状态：M1-D 可复现快照构建候选，等待 Linux 与 Windows 验证
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -97,6 +97,10 @@ M1-C 候选实现 `DuckDBFactRepository`、`FactWriteQueue` 和
 `ContentAddressedRawStore`。DuckDB 只保存规范化 Domain JSON 和最小查询列，读取后同时
 校验内容指纹、索引列、Pydantic 契约及 Point-in-Time 守卫；业务层不接触 DuckDB SQL。
 
+M1-D 候选实现 `SnapshotBuilder`。它只接收 Repository Protocol、显式 fact type 分类政策、
+目标 UUID 和决策时间；Repository 查询后再次验证 Point-in-Time 边界，拒绝版本混用，确定
+性派生 as-of、缺失、过期、质量和内容指纹，再把通过 Domain 校验的快照写入 SQLite。
+
 ## 5. 模型数据流
 
 ```text
@@ -116,7 +120,8 @@ AnalysisSnapshot(snapshot_id)
 独立模型输出分别持久化。Fusion Packet 只包含融合所需的结构化字段和证据引用，不把自由
 文本报告当作主要输入。每一步记录输入版本、模型版本、参数版本和运行 ID。
 
-M1-A 只实现上图的事实与快照契约，没有实现快照构建服务、任何交易模型、融合或风险运行。
+M1-D 已补齐上图从 Point-in-Time 事实到持久化 `AnalysisSnapshot` 的构建边界；尚未实现任何
+交易模型、融合、风险运行或调度。
 
 ## 6. 存储边界
 
@@ -168,7 +173,7 @@ SQLite 决策见 [ADR-0007](adr/0007-sqlite-snapshot-metadata.md)，分析事实
 M0 的 FastAPI 健康检查、React/Tauri 空壳、前后端 Mock 通信、Linux CI 和 Windows 构建
 基线继续有效。
 
-M1-A/M1-B 已验证，M1-C 候选新增验证：
+M1-A/M1-B 已验证，M1-C/M1-D 候选新增验证：
 
 - Pydantic 类型和生成的 JSON Schema 必须确定性一致；
 - 所有时间必须带时区并规范化为 UTC；
@@ -183,6 +188,10 @@ M1-A/M1-B 已验证，M1-C 候选新增验证：
 - Mock 日线、分钟线、公告和新闻可写入 DuckDB 并按 Point-in-Time 查询；
 - 每个成功批次的 Parquet 行数、路径和 SHA-256 可审计，失败批次回滚；
 - Raw Store 相同内容幂等，损坏、非法摘要和非法路径被拒绝；
+- 快照只使用显式映射的 fact type，并在 Repository 返回后再次执行范围和防前视守卫；
+- 相同请求和事实状态的两次构建具有相同内容指纹，身份与创建时间不参与指纹；
+- as-of 使用最大事件时间，版本混用、重复 fact ID、非法时钟和持久化失败均被拒绝；
+- DuckDB Mock 日线、分钟线、公告和新闻可以生成并从 SQLite 读回同一快照；
 - 测试数据库、归档和原始对象只位于 Runner 仓库内临时目录；
 - 尚未实现快照构建、备份恢复、供应商连接、模型、订单或真实金融调用。
 
