@@ -15,6 +15,7 @@
 | [0007](adr/0007-sqlite-snapshot-metadata.md) | SQLite 只保存快照元数据与跨存储 fact ID 引用，迁移使用连接注入 | Accepted | 2026-07-29 |
 | [0008](adr/0008-duckdb-parquet-raw-fact-storage.md) | 分析事实使用受限 DuckDB、不可变 Parquet 批次和内容寻址 Raw Store | Accepted | 2026-07-30 |
 | [0009](adr/0009-deterministic-snapshot-construction.md) | 快照使用显式 fact policy、双重 Point-in-Time 守卫和可复现内容指纹 | Accepted | 2026-07-30 |
+| [0010](adr/0010-offline-audited-backup-restore.md) | Local Lite 使用离线审计归档并只恢复到不存在的新数据根 | Accepted | 2026-07-30 |
 
 ## 状态定义
 
