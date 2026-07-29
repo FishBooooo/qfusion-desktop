@@ -1,6 +1,6 @@
 # 数据模型基线
 
-状态：M1-C 分析事实存储候选，等待跨平台验证
+状态：M1-D 可复现快照构建候选，等待跨平台验证
 最后更新：2026-07-30
 
 ## 1. 标识原则
@@ -146,7 +146,9 @@ DuckDB 候选 Schema 版本为 `1`：
 
 `source_facts.record_json` 是事实的规范表示。`instrument_id`、`fact_type` 和
 `available_at` 是查询加速列，不是第二份真值；读取时必须与 JSON 恢复对象逐字段核对。
-SQL 查询和返回后守卫都执行 `available_at <= decision_time`。
+SQL 查询和返回后守卫都执行 `available_at <= decision_time`。DuckDB 物理列使用无时区
+`TIMESTAMP` 表示规范 UTC；写入前显式去除 UTC 时区，读回时只接受无时区值并恢复为带
+`UTC` 时区的 Domain 时间，避免 DuckDB 客户端隐式本地时区转换。
 
 每个成功写入批次在 `parquet/batches/<batch_id>.parquet` 生成按 `fact_id` 排序的 ZSTD
 归档。DuckDB 目录只保存相对路径，Repository 在读取前重建并验证固定批次路径、不经过
@@ -158,5 +160,24 @@ Raw Store 使用：
 raw/objects/<sha256[0:2]>/<sha256[2:4]>/<sha256><suffix>
 ```
 
-摘要由原始字节计算；相同摘要与后缀的对象只能幂等复用，不能覆盖已损坏对象。当前 M1-C
-仍未实现快照构建、备份恢复、供应商连接或真实金融数据。
+摘要由原始字节计算；相同摘要与后缀的对象只能幂等复用，不能覆盖已损坏对象。
+
+## 9. M1-D 快照派生
+
+`SnapshotBuilder` 使用显式政策把 M1 已验证的事实类型映射为价格、基本面和新闻类别。默认
+映射不按前缀猜测，M2 新类型必须经过版本化政策扩展。
+
+派生规则：
+
+- `FactQuery` 固定 `decision_time`、证券 UUID 和允许的 fact type；返回后再次执行范围与
+  Point-in-Time 守卫；
+- 各类 as-of 使用可用事实最大的 `event_time`；
+- `provider_versions` 按来源唯一，`dataset_versions` 按 `来源::fact_type` 唯一；冲突停止；
+- 必需类别无可用事实时列入 `missing_data`，显式 `STALE` 或超过注入上限时列入
+  `stale_data`；
+- 质量分数是必需类别的可解释、保守元数据分数，不是预测概率；
+- 事实 ID、版本和质量列表均规范排序，`snapshot_id` 与 `created_at` 不参与内容指纹。
+
+相同请求、政策和 Repository 状态允许生成不同永久快照 ID，但必须得到相同
+`content_fingerprint()`。快照通过 Pydantic 校验后才写入 SQLite。M1-D 仍未实现备份恢复、
+供应商连接、模型、订单或真实金融数据。
