@@ -197,13 +197,12 @@ def test_physical_schema_rejects_future_as_of_timestamp(
     repository = SqlAlchemySnapshotRepository(create_session_factory(migrated_engine))
     asyncio.run(repository.add(make_snapshot()))
 
-    with pytest.raises(IntegrityError):
-        with migrated_engine.begin() as connection:
-            connection.execute(
-                update(AnalysisSnapshotRow)
-                .where(AnalysisSnapshotRow.snapshot_id == SNAPSHOT_ID)
-                .values(price_as_of=DECISION_TIME + timedelta(seconds=1))
-            )
+    with pytest.raises(IntegrityError), migrated_engine.begin() as connection:
+        connection.execute(
+            update(AnalysisSnapshotRow)
+            .where(AnalysisSnapshotRow.snapshot_id == SNAPSHOT_ID)
+            .values(price_as_of=DECISION_TIME + timedelta(seconds=1))
+        )
 
 
 def test_repository_detects_fingerprint_and_contract_corruption(
