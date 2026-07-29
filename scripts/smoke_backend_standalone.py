@@ -109,7 +109,7 @@ def _wait_for_health(
     log_path: Path,
 ) -> dict[str, object]:
     opener = build_opener(_RejectRedirects())
-    request = Request(health_url, headers={"Accept": "application/json"})
+    request = Request(health_url, headers={"Accept": "application/json"})  # noqa: S310
     deadline = time.monotonic() + 90.0
     last_error = "service has not accepted a connection"
 
@@ -122,7 +122,7 @@ def _wait_for_health(
             )
 
         try:
-            with opener.open(request, timeout=2.0) as response:  # noqa: S310
+            with opener.open(request, timeout=2.0) as response:
                 if response.geturl() != health_url:
                     raise RuntimeError("Standalone health request was redirected.")
                 if response.status != 200:
