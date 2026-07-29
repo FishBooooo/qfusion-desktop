@@ -180,10 +180,10 @@ def _verify_migration_assets(
         timeout=30.0,
         check=False,
     )
-    expected_output = (
-        f"QFUSION_MIGRATION_ASSETS_OK heads={','.join(expected_heads)}\n"
+    expected_line = (
+        f"QFUSION_MIGRATION_ASSETS_OK heads={','.join(expected_heads)}"
     ).encode()
-    if completed.returncode != 0 or completed.stdout != expected_output:
+    if completed.returncode != 0 or completed.stdout.splitlines() != [expected_line]:
         stdout = completed.stdout.decode("utf-8", errors="replace")
         stderr = completed.stderr.decode("utf-8", errors="replace")
         raise RuntimeError(
