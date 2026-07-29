@@ -1,13 +1,15 @@
 # 测试策略基线
 
+最后更新：2026-07-29
+
 ## M0 测试层
 
 - 后端：健康响应、CORS、localhost 绑定和无订单路由。
 - Fixture：明确合成标识、带时区时间、永久证券 ID 和四视角集合。
 - 前端：Mock 警告、离线降级和后端健康响应验证。
-- E2E：浏览器中可见 Mock 页面与 `PAPER_TRADE_ONLY`。
-- Rust/Tauri：fmt、clippy、test 和空壳构建。
-- Windows：CI Runner 构建独立后端产物和 NSIS 空壳安装包。
+- E2E：浏览器中可见 Mock 页面、`PAPER_TRADE_ONLY` 与后端健康状态。
+- Rust/Tauri：在隔离的 GitHub 托管 Windows Runner 中运行 fmt、clippy、test 和空壳构建。
+- Windows：构建独立后端 EXE，校验其哈希和健康响应，并生成 NSIS 空壳安装包。
 
 ## 统一命令
 
@@ -26,8 +28,61 @@
 bootstrap 在调用 pnpm 前检查 `node_modules/.modules.yaml`。如果现有模块树关联仓库外
 Store，脚本必须输出 `BLOCKED_BY_HOST_ISOLATION` 并停止，不能自动清空或迁移依赖。
 
+## E2E Loopback 边界
+
+自动化 E2E 只能在 QFusion 专用 GitHub 托管 Runner 内运行。测试必须：
+
+- 分别请求操作系统分配后端与前端动态端口，不扫描或复用已有端口；
+- 只连接本次测试记录的 `127.0.0.1` 端点；
+- 记录子进程句柄、启动时间、工作目录、端口和用途；
+- 关闭时使用持有的子进程对象并再次核对身份，不按未验证 PID 终止进程；
+- 禁止 `--with-deps`、系统包管理器、Docker/Podman Socket 和非 Loopback 绑定。
+
+Playwright 浏览器下载到仓库内 `.cache/playwright/`。CI 标志由隔离执行器规范化为
+布尔值后传入，以保持 `forbidOnly`、重试和不可复用既有服务的测试语义。
+
+## Windows standalone 边界
+
+Windows standalone 健康测试必须由构建工作流直接持有新进程句柄，并满足：
+
+- 只接受 `dist/backend/build-manifest.json` 记录的仓库内相对路径；
+- 启动前重新计算 EXE SHA-256；
+- 仅绑定操作系统分配的 Runner 自身动态 Loopback 端口；
+- 不扫描端口、不跟随 HTTP 重定向、不访问其他服务；
+- 验证精确健康端点与 M0 响应字段；
+- 记录 PID、启动时间、工作目录、端口和用途；
+- 停止前再次核验所持进程，不按可复用 PID 盲目终止；
+- 任一原生命令、哈希、启动、响应或身份检查失败都阻止 Artifact 上传。
+
+该测试证明独立 Nuitka EXE 能运行，不证明 Tauri Sidecar 集成、安装、升级或卸载成功。
+
+## M0 实际证据
+
+验证代码提交：`ed6fffdaa785e018ebf051d073b7cba070cac423`。
+
+Linux：
+[CI run 30430746448](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30430746448)。
+
+- Ruff、mypy、OpenAPI/生成客户端一致性检查通过；
+- 22 项 pytest 通过，保留 1 条 Starlette `TestClient` 弃用警告；
+- ESLint、Prettier、TypeScript、2 项 Vitest 与 Vite 生产构建通过；
+- Playwright 1 项通过，后端动态端口 37125、前端动态端口 41371。
+
+Windows：
+[Windows M0 Build run 30430746596](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30430746596)。
+
+- Rust fmt、clippy、test 通过；
+- Ruff、mypy、22 项 pytest、前端 Lint、类型检查、2 项 Vitest 与生产构建通过；
+- Nuitka standalone 编译、EXE SHA-256 校验和动态端口 52277 健康烟雾测试通过；
+- Tauri release 与 NSIS 空壳安装包构建通过；
+- 两个 Artifact 只在全部前置步骤成功后上传。
+
+最新必需运行没有失败测试。修复过程中的两次 Windows 失败运行正确阻止了后续打包和上传，
+证明原生命令非零状态不再被 PowerShell 吞掉。
+
 ## 后续金融测试门禁
 
-涉及行情、财务、新闻、预测或回测时，必须增加时区、交易日、截止时间、盘前盘后、复权、公司行为、`available_at`、修订、退市、缺失值、成本、滑点和延迟状态测试。
+涉及行情、财务、新闻、预测或回测时，必须增加时区、交易日、截止时间、盘前盘后、复权、
+公司行为、`available_at`、修订、退市、缺失值、成本、滑点和延迟状态测试。
 
 CI 中供应商和 LLM 永远使用 Mock，不允许真实付费调用。

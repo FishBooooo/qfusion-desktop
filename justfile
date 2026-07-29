@@ -12,14 +12,14 @@ setup:
 
 # Run Python, TypeScript, formatting, and Rust lint checks.
 lint:
-    {{isolated_runner}} uv run ruff check services/backend scripts
+    {{isolated_runner}} uv run --locked ruff check services/backend scripts
     {{isolated_runner}} pnpm --dir {{desktop_dir}} lint
     {{isolated_runner}} cargo fmt --manifest-path {{tauri_manifest}} --all --check
     {{isolated_runner}} cargo clippy --locked --manifest-path {{tauri_manifest}} --all-targets -- -D warnings
 
 # Run strict backend, frontend, and Rust type/build checks.
 typecheck:
-    {{isolated_runner}} uv run mypy
+    {{isolated_runner}} uv run --locked mypy
     {{isolated_runner}} pnpm --dir {{desktop_dir}} typecheck
     {{isolated_runner}} pnpm --filter @qfusion/generated-client typecheck
     {{isolated_runner}} cargo check --locked --manifest-path {{tauri_manifest}} --all-targets
@@ -28,7 +28,7 @@ typecheck:
 test: test-backend test-frontend test-rust
 
 test-backend:
-    {{isolated_runner}} uv run pytest
+    {{isolated_runner}} uv run --locked pytest
 
 test-frontend:
     {{isolated_runner}} pnpm --dir {{desktop_dir}} test
@@ -40,13 +40,13 @@ test-e2e:
     {{isolated_runner}} pnpm --dir {{desktop_dir}} test:e2e
 
 run-backend:
-    {{isolated_runner}} uv run qfusion-backend
+    {{isolated_runner}} uv run --locked qfusion-backend
 
 run-desktop:
     {{isolated_runner}} pnpm --dir {{desktop_dir}} tauri dev
 
 build-backend:
-    {{isolated_runner}} uv run python scripts/build_backend.py
+    {{isolated_runner}} uv run --locked python scripts/build_backend.py
 
 # Must be run in Windows PowerShell with the Windows build prerequisites.
 build-windows:

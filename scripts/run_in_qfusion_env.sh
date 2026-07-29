@@ -15,6 +15,12 @@ if (($# == 0)); then
   exit 2
 fi
 
+isolated_ci_environment=()
+if [[ "${CI:-}" == "true" ]]; then
+  isolated_ci_environment+=("CI=true")
+fi
+readonly -a isolated_ci_environment
+
 /bin/mkdir -p \
   "${repository_root}/.cache/corepack" \
   "${repository_root}/.cache/coverage" \
@@ -41,6 +47,7 @@ fi
 readonly isolated_path="${repository_root}/.toolchains/bin:${repository_root}/.toolchains/node/bin:${repository_root}/.toolchains/cargo/bin:${repository_root}/.venv/bin:/usr/bin:/bin"
 
 exec /usr/bin/env -i \
+  "${isolated_ci_environment[@]}" \
   CARGO_HOME="${repository_root}/.toolchains/cargo" \
   COREPACK_HOME="${repository_root}/.cache/corepack" \
   COVERAGE_FILE="${repository_root}/.cache/coverage/.coverage" \
