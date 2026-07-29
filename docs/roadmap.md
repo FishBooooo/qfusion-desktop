@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M1 进行中；M1-A 数据契约与 M1-B SQLite 元数据已合并
+状态：M1 进行中；M1-C 分析事实存储候选等待跨平台验证
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -162,11 +162,25 @@ Windows 证据：
 - 两个产物计划于 2026-10-27 到期，只作为 M1-B 回归证据。
 
 M1-B 只在 SQLite 保存快照元数据和跨存储事实引用，没有把高容量金融事实载荷写入
-SQLite，也没有接入供应商、模型、订单或真实金融数据。M1 尚未完成，剩余范围包括：
+SQLite，也没有接入供应商、模型、订单或真实金融数据。
+
+### M1-C：DuckDB、Parquet 与 Raw Store 候选
+
+当前分支已实现但尚未通过最终 Runner 门禁：
+
+- [x] 受限 DuckDB `source_facts`、版本化初始 Schema 和 Point-in-Time 物理查询；
+- [x] 单进程异步写入队列和重复 fact ID 事务回滚；
+- [x] 带相对路径、行数和 SHA-256 的不可变 Parquet 批次归档；
+- [x] SHA-256 内容寻址、幂等且拒绝损坏复用的 Raw Store；
+- [x] Mock 日线、分钟线、公告、新闻及篡改/路径边界测试；
+- [ ] Linux Runner 锁解析、Lint、类型检查、测试、构建与 E2E 全部通过；
+- [ ] Windows Runner 原生模块打包、测试、standalone 与 NSIS 全部通过。
+
+M1 尚未完成，当前门禁为：
 
 - [x] SQLite 元数据 Schema 与 Alembic 迁移；
-- [ ] DuckDB/Parquet 分析存储和单写入队列；
-- [ ] Repository 物理实现与 Mock 日线、分钟线、公告、新闻读写；
+- [ ] DuckDB/Parquet 分析存储和单写入队列（等待 M1-C 验证）；
+- [ ] Repository 物理实现与 Mock 日线、分钟线、公告、新闻读写（等待 M1-C 验证）；
 - [ ] 可复现快照构建服务；
 - [ ] 备份与恢复。
 
