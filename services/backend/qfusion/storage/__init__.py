@@ -1,5 +1,15 @@
 """Local Lite metadata, analytical facts, raw objects, and migrations."""
 
+from qfusion.storage.backup import (
+    BackupConflictError,
+    BackupEntry,
+    BackupError,
+    BackupIntegrityError,
+    BackupManifest,
+    BackupReceipt,
+    LocalLiteBackupService,
+    RestoreReceipt,
+)
 from qfusion.storage.database import (
     SessionFactory,
     create_session_factory,
@@ -31,6 +41,12 @@ from qfusion.storage.repositories import (
 )
 
 __all__ = [
+    "BackupConflictError",
+    "BackupEntry",
+    "BackupError",
+    "BackupIntegrityError",
+    "BackupManifest",
+    "BackupReceipt",
     "ContentAddressedRawStore",
     "DuckDBFactRepository",
     "DuplicateFactError",
@@ -38,8 +54,10 @@ __all__ = [
     "FactBatchReceipt",
     "FactIntegrityError",
     "FactWriteQueue",
+    "LocalLiteBackupService",
     "RawObject",
     "RawStoreIntegrityError",
+    "RestoreReceipt",
     "SessionFactory",
     "SnapshotIntegrityError",
     "SqlAlchemySnapshotRepository",
