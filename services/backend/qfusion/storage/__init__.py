@@ -1,9 +1,16 @@
-"""SQLite metadata persistence, migrations, and repository implementations."""
+"""Local Lite metadata, analytical facts, raw objects, and migrations."""
 
 from qfusion.storage.database import (
     SessionFactory,
     create_session_factory,
     create_sqlite_engine,
+)
+from qfusion.storage.facts import (
+    DuckDBFactRepository,
+    DuplicateFactError,
+    FactBatchReceipt,
+    FactIntegrityError,
+    FactWriteQueue,
 )
 from qfusion.storage.migrations import (
     create_alembic_config,
@@ -12,6 +19,11 @@ from qfusion.storage.migrations import (
     upgrade_database,
     verify_migration_assets,
 )
+from qfusion.storage.raw_store import (
+    ContentAddressedRawStore,
+    RawObject,
+    RawStoreIntegrityError,
+)
 from qfusion.storage.repositories import (
     DuplicateSnapshotError,
     SnapshotIntegrityError,
@@ -19,7 +31,15 @@ from qfusion.storage.repositories import (
 )
 
 __all__ = [
+    "ContentAddressedRawStore",
+    "DuckDBFactRepository",
+    "DuplicateFactError",
     "DuplicateSnapshotError",
+    "FactBatchReceipt",
+    "FactIntegrityError",
+    "FactWriteQueue",
+    "RawObject",
+    "RawStoreIntegrityError",
     "SessionFactory",
     "SnapshotIntegrityError",
     "SqlAlchemySnapshotRepository",
