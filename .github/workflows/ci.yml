@@ -26,6 +26,7 @@ jobs:
             --before .tmp/uv.lock.before \
             --after uv.lock \
             --allow-new alembic \
+            --allow-new duckdb \
             --allow-new greenlet \
             --allow-new mako \
             --allow-new markupsafe \
