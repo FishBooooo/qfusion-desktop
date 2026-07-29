@@ -201,7 +201,6 @@ def main() -> None:
         "schema_version": 2,
         "artifact_type": "nuitka-standalone",
         "dependency_scanner": dependency_scanner,
-        "sqlalchemy_dialects": ["sqlite"],
         "executable": executable.relative_to(REPOSITORY_ROOT).as_posix(),
         "sha256": _sha256(executable),
         "migration_assets": {
