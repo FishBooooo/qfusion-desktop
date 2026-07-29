@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from io import StringIO
 from unittest.mock import patch
 
 from qfusion.config.settings import Settings
@@ -21,11 +22,33 @@ def test_entrypoint_passes_validated_local_settings_to_uvicorn() -> None:
         patch("qfusion.__main__.get_settings", return_value=settings),
         patch("qfusion.__main__.uvicorn.run") as run_server,
     ):
-        main()
+        main([])
 
     run_server.assert_called_once_with(
         app,
         host="127.0.0.1",
         port=8123,
         log_level="warning",
+    )
+
+
+def test_entrypoint_can_verify_packaged_migrations_without_starting_server() -> None:
+    from qfusion.__main__ import main
+
+    output = StringIO()
+    with (
+        patch(
+            "qfusion.__main__.verify_migration_assets",
+            return_value=("0001_m1b_snapshots",),
+        ) as verify_assets,
+        patch("qfusion.__main__.sys.stdout", output),
+        patch("qfusion.__main__.uvicorn.run") as run_server,
+    ):
+        main(["--verify-migration-assets"])
+
+    verify_assets.assert_called_once_with()
+    run_server.assert_not_called()
+    assert (
+        output.getvalue()
+        == "QFUSION_MIGRATION_ASSETS_OK heads=0001_m1b_snapshots\n"
     )
