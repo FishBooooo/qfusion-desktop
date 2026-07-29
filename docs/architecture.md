@@ -1,6 +1,6 @@
 # QFusion Desktop 架构基线
 
-状态：M1-A 版本化领域契约已落地，物理存储尚未实现
+状态：M1-B SQLite 快照元数据已落地，分析事实存储尚未实现
 最后更新：2026-07-29
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -89,6 +89,10 @@ M1-A 已在 Domain 层定义：
 具体 Repository 实现必须在返回后再次通过 Point-in-Time 守卫，不能依赖 SQL 正确性作为
 唯一的防前视边界。
 
+M1-B 已实现 SQLite `SnapshotRepository`。异步 Protocol 通过线程卸载调用短生命周期
+SQLAlchemy Session，避免阻塞 FastAPI 事件循环；Repository 只返回重新通过 Pydantic 与
+内容指纹验证的 Domain 对象，不向上层暴露 ORM Row。
+
 ## 5. 模型数据流
 
 ```text
@@ -118,9 +122,17 @@ M1-A 只实现上图的事实与快照契约，没有实现快照构建服务、
 - 系统采用单写入器原则；并发读取可以存在，并发任务不能直接写同一个 DuckDB 文件。
 - 用户数据位于 `%LOCALAPPDATA%\QFusion\`，不写入安装目录。
 
-上述仍是 ADR-0001 确定的目标映射。M1-A 没有创建数据库文件、物理表、迁移、写入队列或
-用户数据目录。详细契约见 [data-model.md](data-model.md)，存储选择见
-[ADR-0001](adr/0001-local-lite-storage.md)。
+上述仍是 ADR-0001 确定的目标映射。M1-B 只新增：
+
+- SQLite `analysis_snapshots` 元数据表；
+- SQLite `analysis_snapshot_facts` 跨存储 fact ID 引用表；
+- URL-free、连接注入的可逆 Alembic 迁移；
+- 每连接启用外键、UTC 时间类型和数据库级 Point-in-Time 检查约束。
+
+事实载荷没有写入 SQLite，仍由后续 DuckDB/Parquet/Raw Store 实现承担；跨存储 fact ID
+因此不伪造 SQLite 外键。详细契约见 [data-model.md](data-model.md)，存储选择见
+[ADR-0001](adr/0001-local-lite-storage.md)，物理决策见
+[ADR-0007](adr/0007-sqlite-snapshot-metadata.md)。
 
 ## 7. 前端边界
 
@@ -146,7 +158,7 @@ M1-A 只实现上图的事实与快照契约，没有实现快照构建服务、
 M0 的 FastAPI 健康检查、React/Tauri 空壳、前后端 Mock 通信、Linux CI 和 Windows 构建
 基线继续有效。
 
-M1-A 新增验证：
+M1-A/M1-B 新增验证：
 
 - Pydantic 类型和生成的 JSON Schema 必须确定性一致；
 - 所有时间必须带时区并规范化为 UTC；
@@ -155,6 +167,10 @@ M1-A 新增验证：
 - UUID 永久标识、版本映射、缺失/过期数据和复权状态必须显式；
 - Repository Protocol 不依赖供应商或具体数据库；
 - Linux 与 Windows 托管 CI 同时执行契约测试；
-- 未创建数据库、供应商连接、模型、订单或真实金融调用。
+- 空 SQLite 数据库可升级到 head、重复升级、降级到 base 并再次升级；
+- 迁移列与 ORM metadata 一致，外键、级联和数据库检查约束实际生效；
+- Snapshot Repository 可往返不可变元数据，并拒绝重复标识和指纹/契约损坏；
+- 测试数据库只位于 Runner 仓库内临时目录；
+- 未实现 DuckDB/Parquet、供应商连接、模型、订单或真实金融调用。
 
 进度和测试证据见 [roadmap.md](roadmap.md)。

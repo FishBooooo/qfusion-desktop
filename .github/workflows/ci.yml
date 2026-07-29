@@ -17,6 +17,26 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Resolve dependency lock without upgrades
+        run: |
+          ./scripts/install_tools_linux.sh
+          cp uv.lock .tmp/uv.lock.before
+          ./scripts/run_in_qfusion_env.sh uv lock
+          /usr/bin/python3 scripts/check_uv_lock_update.py \
+            --before .tmp/uv.lock.before \
+            --after uv.lock \
+            --allow-new alembic \
+            --allow-new greenlet \
+            --allow-new mako \
+            --allow-new markupsafe \
+            --allow-new sqlalchemy
+          if ! git diff --quiet -- uv.lock; then
+            echo "UV_LOCK_BASE64_BEGIN"
+            /usr/bin/base64 --wrap=0 uv.lock
+            echo
+            echo "UV_LOCK_BASE64_END"
+          fi
+
       - name: Bootstrap pinned project-local toolchains
         run: ./scripts/bootstrap_linux.sh
 
@@ -49,3 +69,6 @@ jobs:
 
       - name: Run dynamic-loopback E2E
         run: ./scripts/run_in_qfusion_env.sh pnpm --dir apps/desktop test:e2e
+
+      - name: Require the resolved uv lock to be checked in
+        run: git diff --exit-code -- uv.lock

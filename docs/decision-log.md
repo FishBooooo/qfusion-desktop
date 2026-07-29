@@ -1,6 +1,6 @@
 # 架构决策日志
 
-最后更新：2026-07-27
+最后更新：2026-07-29
 
 本日志只登记重要决策及状态；完整背景和后果写入对应 ADR。任何改变核心方向的提议都必须先获得确认，再新增或替代 ADR。
 
@@ -12,6 +12,7 @@
 | [0004](adr/0004-versioned-fusion-packet.md) | 融合只接收版本化、验证后的 Fusion Packet | Accepted | 2026-07-27 |
 | [0005](adr/0005-cache-first-llm-budget.md) | LLM 使用缓存优先、模式化开关和硬预算 | Accepted | 2026-07-27 |
 | [0006](adr/0006-project-local-toolchains.md) | 开发工具链、依赖缓存和子进程环境全部限制在项目内 | Accepted | 2026-07-27 |
+| [0007](adr/0007-sqlite-snapshot-metadata.md) | SQLite 只保存快照元数据与跨存储 fact ID 引用，迁移使用连接注入 | Accepted | 2026-07-29 |
 
 ## 状态定义
 
