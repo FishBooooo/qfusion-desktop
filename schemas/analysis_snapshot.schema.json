@@ -1,0 +1,231 @@
+{
+  "$defs": {
+    "Market": {
+      "description": "Markets supported by the first QFusion phase.",
+      "enum": [
+        "US",
+        "HK"
+      ],
+      "title": "Market",
+      "type": "string"
+    },
+    "RequestedHorizon": {
+      "description": "Decision horizons supported by the first QFusion phase.",
+      "enum": [
+        "intraday",
+        "5d",
+        "20d",
+        "3m"
+      ],
+      "title": "RequestedHorizon",
+      "type": "string"
+    },
+    "TargetType": {
+      "description": "Kinds of analysis targets.",
+      "enum": [
+        "stock",
+        "sector",
+        "basket"
+      ],
+      "title": "TargetType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Immutable, reproducible input shared by all three independent models.",
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "dataset_versions": {
+      "additionalProperties": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "propertyNames": {
+        "maxLength": 128,
+        "minLength": 1
+      },
+      "title": "Dataset Versions",
+      "type": "object"
+    },
+    "decision_time": {
+      "format": "date-time",
+      "title": "Decision Time",
+      "type": "string"
+    },
+    "fact_ids": {
+      "default": [],
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "title": "Fact Ids",
+      "type": "array"
+    },
+    "flow_as_of": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Flow As Of"
+    },
+    "fundamental_as_of": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Fundamental As Of"
+    },
+    "macro_as_of": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Macro As Of"
+    },
+    "market": {
+      "$ref": "#/$defs/Market"
+    },
+    "market_timezone": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Market Timezone",
+      "type": "string"
+    },
+    "missing_data": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Missing Data",
+      "type": "array"
+    },
+    "news_as_of": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "News As Of"
+    },
+    "options_as_of": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Options As Of"
+    },
+    "price_as_of": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Price As Of"
+    },
+    "provider_versions": {
+      "additionalProperties": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "propertyNames": {
+        "maxLength": 128,
+        "minLength": 1
+      },
+      "title": "Provider Versions",
+      "type": "object"
+    },
+    "quality_score": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Quality Score",
+      "type": "number"
+    },
+    "requested_horizon": {
+      "$ref": "#/$defs/RequestedHorizon"
+    },
+    "schema_version": {
+      "default": "1.0.0",
+      "pattern": "^1\\.0\\.0$",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "snapshot_id": {
+      "format": "uuid",
+      "title": "Snapshot Id",
+      "type": "string"
+    },
+    "stale_data": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Stale Data",
+      "type": "array"
+    },
+    "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+    },
+    "target_type": {
+      "$ref": "#/$defs/TargetType"
+    }
+  },
+  "required": [
+    "snapshot_id",
+    "target_type",
+    "target_id",
+    "market",
+    "requested_horizon",
+    "decision_time",
+    "market_timezone",
+    "created_at",
+    "quality_score"
+  ],
+  "title": "AnalysisSnapshot",
+  "type": "object"
+}

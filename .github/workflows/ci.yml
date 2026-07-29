@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  linux-m0:
-    name: Linux M0
+  linux:
+    name: Linux CI
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -24,8 +24,9 @@ jobs:
         run: |
           ./scripts/run_in_qfusion_env.sh uv run --locked python scripts/validate_workspace.py --with-tools
           ./scripts/run_in_qfusion_env.sh uv run --locked python scripts/export_openapi.py
+          ./scripts/run_in_qfusion_env.sh uv run --locked python scripts/export_domain_schemas.py
           ./scripts/run_in_qfusion_env.sh pnpm generate:client
-          git diff --exit-code -- packages/contracts/openapi.json packages/generated-client/src/schema.d.ts
+          git diff --exit-code -- packages/contracts/openapi.json packages/generated-client/src/schema.d.ts schemas/analysis_snapshot.schema.json schemas/data_source_record.schema.json
 
       - name: Lint and type-check
         run: |
