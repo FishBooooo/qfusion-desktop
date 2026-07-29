@@ -1,7 +1,7 @@
 # 数据模型基线
 
-状态：M1-B SQLite 快照元数据 Schema；分析事实仓库尚未实现
-最后更新：2026-07-29
+状态：M1-C 分析事实存储候选，等待跨平台验证
+最后更新：2026-07-30
 
 ## 1. 标识原则
 
@@ -131,6 +131,32 @@ JSON 列保存，但读取后必须重新通过 Pydantic 校验。所有时间�
 `UTCDateTime` 写成无时区 UTC、读回为带 UTC 时区值。Repository 还重新计算
 `content_fingerprint`，拒绝静默损坏或被外部修改的行。
 
-`analysis_snapshot_facts.fact_id` 有查询索引但没有 SQLite 外键，因为目标事实属于后续
-DuckDB/Parquet/Raw Store。当前切片没有把 `DataSourceRecord.payload` 放入 SQLite，也
-没有实现分析事实写入、快照构建、备份或恢复。
+`analysis_snapshot_facts.fact_id` 有查询索引但没有 SQLite 外键，因为目标事实属于
+DuckDB/Parquet/Raw Store。`DataSourceRecord.payload` 不写入 SQLite。
+
+## 8. M1-C 分析事实与原始对象物理映射
+
+DuckDB 候选 Schema 版本为 `1`：
+
+| 表 | 用途 | 关键约束 |
+| --- | --- | --- |
+| `warehouse_metadata` | DuckDB 物理 Schema 版本 | 未知版本拒绝打开 |
+| `source_facts` | 规范 `DataSourceRecord` JSON 和 Point-in-Time 查询列 | `fact_id` 主键；内容 SHA-256；`available_at`、instrument 和 fact type 索引 |
+| `fact_batches` | 不可变 Parquet 批次目录 | UUID 批次主键；正行数；唯一相对路径；文件 SHA-256 |
+
+`source_facts.record_json` 是事实的规范表示。`instrument_id`、`fact_type` 和
+`available_at` 是查询加速列，不是第二份真值；读取时必须与 JSON 恢复对象逐字段核对。
+SQL 查询和返回后守卫都执行 `available_at <= decision_time`。
+
+每个成功写入批次在 `parquet/batches/<batch_id>.parquet` 生成按 `fact_id` 排序的 ZSTD
+归档。DuckDB 目录只保存相对路径，Repository 在读取前重建并验证固定批次路径、不经过
+符号链接、仍位于根目录、SHA-256 和行数均一致。
+
+Raw Store 使用：
+
+```text
+raw/objects/<sha256[0:2]>/<sha256[2:4]>/<sha256><suffix>
+```
+
+摘要由原始字节计算；相同摘要与后缀的对象只能幂等复用，不能覆盖已损坏对象。当前 M1-C
+仍未实现快照构建、备份恢复、供应商连接或真实金融数据。
