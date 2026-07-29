@@ -28,9 +28,45 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build and test with pinned project-local toolchains
+      - name: Install pinned project-local toolchains
         shell: pwsh
-        run: ./scripts/build_windows.ps1
+        timeout-minutes: 25
+        run: ./scripts/build_windows.ps1 -Stage tools
+
+      - name: Sync locked Python dependencies
+        shell: pwsh
+        timeout-minutes: 15
+        run: ./scripts/build_windows.ps1 -Stage python-dependencies
+
+      - name: Sync locked Node dependencies and contracts
+        shell: pwsh
+        timeout-minutes: 20
+        run: ./scripts/build_windows.ps1 -Stage node-contracts
+
+      - name: Check Rust desktop shell
+        shell: pwsh
+        timeout-minutes: 30
+        run: ./scripts/build_windows.ps1 -Stage rust
+
+      - name: Check Python backend
+        shell: pwsh
+        timeout-minutes: 20
+        run: ./scripts/build_windows.ps1 -Stage backend
+
+      - name: Check React frontend
+        shell: pwsh
+        timeout-minutes: 15
+        run: ./scripts/build_windows.ps1 -Stage frontend
+
+      - name: Build and smoke-test backend standalone
+        shell: pwsh
+        timeout-minutes: 25
+        run: ./scripts/build_windows.ps1 -Stage backend-package
+
+      - name: Build Tauri NSIS installer
+        shell: pwsh
+        timeout-minutes: 35
+        run: ./scripts/build_windows.ps1 -Stage desktop-package
 
       - name: Upload backend standalone build
         uses: actions/upload-artifact@v6
