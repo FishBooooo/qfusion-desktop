@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS source_facts (
     fact_id VARCHAR PRIMARY KEY,
     instrument_id VARCHAR,
     fact_type VARCHAR NOT NULL,
-    available_at TIMESTAMPTZ NOT NULL,
+    available_at TIMESTAMP NOT NULL,
     batch_id VARCHAR NOT NULL,
     record_json VARCHAR NOT NULL,
     content_sha256 VARCHAR NOT NULL CHECK (length(content_sha256) = 64)
@@ -41,7 +41,7 @@ CREATE INDEX IF NOT EXISTS source_facts_type_idx
     ON source_facts (fact_type, available_at);
 CREATE TABLE IF NOT EXISTS fact_batches (
     batch_id VARCHAR PRIMARY KEY,
-    created_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMP NOT NULL,
     record_count BIGINT NOT NULL CHECK (record_count > 0),
     parquet_relative_path VARCHAR NOT NULL UNIQUE,
     parquet_sha256 VARCHAR NOT NULL CHECK (length(parquet_sha256) = 64)
@@ -94,6 +94,18 @@ def _canonical_record(record: DataSourceRecord) -> tuple[str, str]:
         usedforsecurity=False,
     ).hexdigest()
     return serialized, fingerprint
+
+
+def _to_storage_utc(value: datetime) -> datetime:
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("storage timestamps must be timezone-aware")
+    return value.astimezone(UTC).replace(tzinfo=None)
+
+
+def _restore_storage_utc(value: object, label: str) -> datetime:
+    if not isinstance(value, datetime) or value.tzinfo is not None:
+        raise FactIntegrityError(f"{label} is not a naive UTC database timestamp")
+    return value.replace(tzinfo=UTC)
 
 
 def _sql_string(value: str) -> str:
@@ -283,7 +295,7 @@ class DuckDBFactRepository:
                     str(record.fact_id),
                     None if record.instrument_id is None else str(record.instrument_id),
                     record.fact_type,
-                    record.available_at,
+                    _to_storage_utc(record.available_at),
                     str(batch_id),
                     serialized,
                     fingerprint,
@@ -337,7 +349,7 @@ class DuckDBFactRepository:
                 """,
                 [
                     str(batch_id),
-                    created_at,
+                    _to_storage_utc(created_at),
                     len(records),
                     relative_path.as_posix(),
                     archive_sha256,
@@ -396,7 +408,7 @@ class DuckDBFactRepository:
                 ORDER BY available_at, fact_id
                 """,
                 [
-                    query.decision_time,
+                    _to_storage_utc(query.decision_time),
                     not instrument_ids,
                     instrument_ids,
                     not fact_types,
@@ -430,7 +442,11 @@ class DuckDBFactRepository:
                 fact_id != str(record.fact_id)
                 or instrument_id != expected_instrument
                 or fact_type != record.fact_type
-                or available_at != record.available_at
+                or _restore_storage_utc(
+                    available_at,
+                    "stored fact available_at",
+                )
+                != record.available_at
             ):
                 raise FactIntegrityError("stored fact index columns differ from canonical JSON")
             restored.append(record)
@@ -452,13 +468,11 @@ class DuckDBFactRepository:
             return None
 
         created_at, record_count, relative_value, sha256_value = row
-        if (
-            not isinstance(created_at, datetime)
-            or created_at.tzinfo is None
-            or created_at.utcoffset() is None
-            or not isinstance(record_count, int)
-            or record_count <= 0
-        ):
+        restored_created_at = _restore_storage_utc(
+            created_at,
+            "fact batch created_at",
+        )
+        if not isinstance(record_count, int) or record_count <= 0:
             raise FactIntegrityError("fact batch metadata is invalid")
         expected_sha256 = _validate_sha256(sha256_value, "Parquet archive fingerprint")
         relative_path = _relative_archive_path(relative_value, batch_id)
@@ -483,7 +497,7 @@ class DuckDBFactRepository:
 
         return FactBatchReceipt(
             batch_id=batch_id,
-            created_at=created_at.astimezone(UTC),
+            created_at=restored_created_at,
             record_count=record_count,
             parquet_path=archive_path,
             parquet_sha256=expected_sha256,
