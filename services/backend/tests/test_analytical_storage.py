@@ -15,6 +15,7 @@ from qfusion.domain import DataSourceRecord, FactQuery, FactReadRepository, Qual
 from qfusion.storage.facts import (
     DuckDBFactRepository,
     DuplicateFactError,
+    FactBatchReceipt,
     FactIntegrityError,
     FactWriteQueue,
 )
@@ -207,13 +208,12 @@ def test_fact_repository_detects_database_and_archive_tampering(tmp_path: Path) 
     repository, database_path, _ = _repository(tmp_path / "integrity")
     record = _record(20, "market.bar.minute", _BASE_TIME)
 
-    async def persist() -> object:
+    async def persist() -> FactBatchReceipt:
         await repository.initialize()
         async with FactWriteQueue(repository) as writer:
             return await writer.submit((record,))
 
     receipt = asyncio.run(persist())
-    assert hasattr(receipt, "batch_id")
 
     connection = duckdb.connect(str(database_path))
     try:
@@ -359,13 +359,16 @@ def test_fact_repository_rejects_bad_schema_state_and_unsafe_paths(tmp_path: Pat
     connection = duckdb.connect(str(database_path))
     try:
         connection.execute(
-            "UPDATE warehouse_metadata SET metadata_value = '999' WHERE metadata_key = 'schema_version'"
+            """
+            UPDATE warehouse_metadata SET metadata_value = '999'
+            WHERE metadata_key = 'schema_version'
+            """
         )
     finally:
         connection.close()
 
     incompatible = DuckDBFactRepository(database_path, parquet_root)
-    with pytest.raises(FactIntegrityError, match="unsupported.*999"):
+    with pytest.raises(FactIntegrityError, match=r"unsupported.*999"):
         asyncio.run(incompatible.initialize())
 
     with pytest.raises(ValueError, match="database_path must be absolute"):
