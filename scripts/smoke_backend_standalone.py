@@ -291,6 +291,7 @@ def main() -> None:
             "QFUSION_HOST": "127.0.0.1",
             "QFUSION_LLM_MODE": "off",
             "QFUSION_LOG_LEVEL": "warning",
+            "PYTHONDONTWRITEBYTECODE": "1",
         }
     )
     _verify_migration_assets(executable, migration_heads, environment)
