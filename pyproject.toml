@@ -11,9 +11,11 @@ requires-python = ">=3.12,<3.14"
 license = { file = "LICENSE" }
 authors = [{ name = "QFusion Desktop contributors" }]
 dependencies = [
+  "alembic>=1.18,<2",
   "fastapi>=0.115,<1",
   "pydantic>=2.10,<3",
   "pydantic-settings>=2.7,<3",
+  "sqlalchemy>=2.0.51,<3",
   "uvicorn[standard]>=0.34,<1",
 ]
 
