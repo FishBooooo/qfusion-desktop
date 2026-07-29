@@ -30,6 +30,7 @@ from qfusion.storage import (
     create_sqlite_engine,
     current_database_revision,
     upgrade_database,
+    verify_migration_assets,
 )
 from qfusion.storage.models import AnalysisSnapshotRow, Base, SnapshotFactReferenceRow
 from qfusion.storage.types import UTCDateTime
@@ -100,6 +101,7 @@ def test_migration_is_idempotent_reversible_and_matches_orm(tmp_path: Path) -> N
     engine = create_sqlite_engine((tmp_path / "migration.sqlite3").resolve())
     try:
         assert current_database_revision(engine) is None
+        assert verify_migration_assets() == ("0001_m1b_snapshots",)
 
         upgrade_database(engine)
         upgrade_database(engine)
