@@ -245,7 +245,7 @@ def test_fact_repository_detects_database_and_archive_tampering(tmp_path: Path) 
             UPDATE source_facts SET record_json = ?, content_sha256 = ?
             WHERE fact_id = ?
             """,
-            [_sha256(invalid_json.encode()), _sha256(invalid_json.encode()), str(record.fact_id)],
+            [invalid_json, _sha256(invalid_json.encode()), str(record.fact_id)],
         )
     finally:
         connection.close()
