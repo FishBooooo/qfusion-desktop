@@ -24,7 +24,7 @@ permissions:
 jobs:
   build-windows:
     runs-on: windows-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v6
 
@@ -58,9 +58,10 @@ jobs:
         timeout-minutes: 15
         run: ./scripts/build_windows.ps1 -Stage frontend
 
+      # A clean Windows Runner compiles hundreds of Nuitka C translation units.
       - name: Build and smoke-test backend standalone
         shell: pwsh
-        timeout-minutes: 25
+        timeout-minutes: 90
         run: ./scripts/build_windows.ps1 -Stage backend-package
 
       - name: Build Tauri NSIS installer
