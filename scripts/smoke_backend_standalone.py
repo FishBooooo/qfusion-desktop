@@ -176,8 +176,7 @@ def _verify_migration_assets(
         cwd=executable.parent,
         env=environment,
         stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         timeout=30.0,
         check=False,
     )
