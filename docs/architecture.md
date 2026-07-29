@@ -1,7 +1,7 @@
 # QFusion Desktop 架构基线
 
-状态：M1-B SQLite 快照元数据已落地，分析事实存储尚未实现
-最后更新：2026-07-29
+状态：M1-C 分析事实存储候选，等待 Linux 与 Windows 验证
+最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
 ## 1. 目标与边界
@@ -93,6 +93,10 @@ M1-B 已实现 SQLite `SnapshotRepository`。异步 Protocol 通过线程卸载�
 SQLAlchemy Session，避免阻塞 FastAPI 事件循环；Repository 只返回重新通过 Pydantic 与
 内容指纹验证的 Domain 对象，不向上层暴露 ORM Row。
 
+M1-C 候选实现 `DuckDBFactRepository`、`FactWriteQueue` 和
+`ContentAddressedRawStore`。DuckDB 只保存规范化 Domain JSON 和最小查询列，读取后同时
+校验内容指纹、索引列、Pydantic 契约及 Point-in-Time 守卫；业务层不接触 DuckDB SQL。
+
 ## 5. 模型数据流
 
 ```text
@@ -129,10 +133,16 @@ M1-A 只实现上图的事实与快照契约，没有实现快照构建服务、
 - URL-free、连接注入的可逆 Alembic 迁移；
 - 每连接启用外键、UTC 时间类型和数据库级 Point-in-Time 检查约束。
 
-事实载荷没有写入 SQLite，仍由后续 DuckDB/Parquet/Raw Store 实现承担；跨存储 fact ID
-因此不伪造 SQLite 外键。详细契约见 [data-model.md](data-model.md)，存储选择见
-[ADR-0001](adr/0001-local-lite-storage.md)，物理决策见
-[ADR-0007](adr/0007-sqlite-snapshot-metadata.md)。
+跨存储 fact ID 不伪造 SQLite 外键。M1-C 候选实现把规范 `DataSourceRecord` 写入
+DuckDB，并为每个成功批次生成带行数和 SHA-256 的不可变 Parquet 归档；所有写入通过单个
+进程内异步队列串行执行。Raw Store 以原始字节 SHA-256 内容寻址并拒绝符号链接、路径穿越
+和损坏对象复用。
+
+DuckDB 连接禁用扩展自动安装、自动加载和社区扩展，只允许访问调用方提供的 Parquet 根，
+临时文件与扩展目录也位于该根内；完成配置后关闭一般外部访问并锁定配置。详细契约见
+[data-model.md](data-model.md)，存储选择见 [ADR-0001](adr/0001-local-lite-storage.md)，
+SQLite 决策见 [ADR-0007](adr/0007-sqlite-snapshot-metadata.md)，分析事实存储见
+[ADR-0008](adr/0008-duckdb-parquet-raw-fact-storage.md)。
 
 ## 7. 前端边界
 
@@ -158,7 +168,7 @@ M1-A 只实现上图的事实与快照契约，没有实现快照构建服务、
 M0 的 FastAPI 健康检查、React/Tauri 空壳、前后端 Mock 通信、Linux CI 和 Windows 构建
 基线继续有效。
 
-M1-A/M1-B 新增验证：
+M1-A/M1-B 已验证，M1-C 候选新增验证：
 
 - Pydantic 类型和生成的 JSON Schema 必须确定性一致；
 - 所有时间必须带时区并规范化为 UTC；
@@ -170,7 +180,10 @@ M1-A/M1-B 新增验证：
 - 空 SQLite 数据库可升级到 head、重复升级、降级到 base 并再次升级；
 - 迁移列与 ORM metadata 一致，外键、级联和数据库检查约束实际生效；
 - Snapshot Repository 可往返不可变元数据，并拒绝重复标识和指纹/契约损坏；
-- 测试数据库只位于 Runner 仓库内临时目录；
-- 未实现 DuckDB/Parquet、供应商连接、模型、订单或真实金融调用。
+- Mock 日线、分钟线、公告和新闻可写入 DuckDB 并按 Point-in-Time 查询；
+- 每个成功批次的 Parquet 行数、路径和 SHA-256 可审计，失败批次回滚；
+- Raw Store 相同内容幂等，损坏、非法摘要和非法路径被拒绝；
+- 测试数据库、归档和原始对象只位于 Runner 仓库内临时目录；
+- 尚未实现快照构建、备份恢复、供应商连接、模型、订单或真实金融调用。
 
 进度和测试证据见 [roadmap.md](roadmap.md)。
