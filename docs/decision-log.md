@@ -14,6 +14,7 @@
 | [0006](adr/0006-project-local-toolchains.md) | 开发工具链、依赖缓存和子进程环境全部限制在项目内 | Accepted | 2026-07-27 |
 | [0007](adr/0007-sqlite-snapshot-metadata.md) | SQLite 只保存快照元数据与跨存储 fact ID 引用，迁移使用连接注入 | Accepted | 2026-07-29 |
 | [0008](adr/0008-duckdb-parquet-raw-fact-storage.md) | 分析事实使用受限 DuckDB、不可变 Parquet 批次和内容寻址 Raw Store | Accepted | 2026-07-30 |
+| [0009](adr/0009-deterministic-snapshot-construction.md) | 快照使用显式 fact policy、双重 Point-in-Time 守卫和可复现内容指纹 | Accepted | 2026-07-30 |
 
 ## 状态定义
 
