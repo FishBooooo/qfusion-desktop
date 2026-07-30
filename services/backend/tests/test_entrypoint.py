@@ -52,3 +52,24 @@ def test_entrypoint_can_verify_packaged_migrations_without_starting_server() -> 
         output.getvalue()
         == "QFUSION_MIGRATION_ASSETS_OK heads=0001_m1b_snapshots\n"
     )
+
+def test_entrypoint_can_verify_packaged_timezone_data_without_server() -> None:
+    from qfusion.__main__ import main
+
+    output = StringIO()
+    with (
+        patch(
+            "qfusion.__main__._verify_timezone_data",
+            return_value=("America/New_York", "Asia/Hong_Kong"),
+        ) as verify_timezone_data,
+        patch("qfusion.__main__.sys.stdout", output),
+        patch("qfusion.__main__.uvicorn.run") as run_server,
+    ):
+        main(["--verify-timezone-data"])
+
+    verify_timezone_data.assert_called_once_with()
+    run_server.assert_not_called()
+    assert (
+        output.getvalue()
+        == "QFUSION_TIMEZONE_DATA_OK zones=America/New_York,Asia/Hong_Kong\n"
+    )
