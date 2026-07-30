@@ -39,7 +39,7 @@ def test_entrypoint_can_verify_packaged_migrations_without_starting_server() -> 
     with (
         patch(
             "qfusion.__main__.verify_migration_assets",
-            return_value=("0001_m1b_snapshots",),
+            return_value=("0002_m2b_instruments",),
         ) as verify_assets,
         patch("qfusion.__main__.sys.stdout", output),
         patch("qfusion.__main__.uvicorn.run") as run_server,
@@ -50,7 +50,7 @@ def test_entrypoint_can_verify_packaged_migrations_without_starting_server() -> 
     run_server.assert_not_called()
     assert (
         output.getvalue()
-        == "QFUSION_MIGRATION_ASSETS_OK heads=0001_m1b_snapshots\n"
+        == "QFUSION_MIGRATION_ASSETS_OK heads=0002_m2b_instruments\n"
     )
 
 
