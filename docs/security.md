@@ -44,7 +44,11 @@
 - 缺少联系标识、非法 CIK、非公网 DNS、重定向、代理、非 JSON、原始字节不一致或响应
   超限均 fail closed。
 - Artifact 只含公开官方响应及其无秘密审计清单，保留 1 天，不自动提交。
-- 常规 Linux/Windows CI 仍完全 Mock；合并候选不会触发真实 SEC 请求。
+- 常规 Linux/Windows CI 仍完全 Mock；门禁合并与跨平台回归没有触发真实 SEC 请求。
+
+M2-C2a 门禁已通过精确提交的 Linux/Windows 验证并合并；审计与隔离证据见
+[M2-C2a 验收记录](m2c2a-acceptance.md)。该验收不代表已配置联系标识、执行 live request
+或取得官方响应 Fixture。
 
 ## 后续必须实现
 
