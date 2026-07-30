@@ -229,7 +229,14 @@ def test_mock_provider_rejects_market_mismatched_with_instrument_mapping() -> No
     )
 
     with raises(ValueError, match="market does not match"):
-        asyncio.run(provider.get_bars(make_request(market=Market.HK)))
+        asyncio.run(
+            provider.get_bars(
+                make_request(
+                    market=Market.HK,
+                    start=datetime(1999, 1, 1, tzinfo=UTC),
+                )
+            )
+        )
 
 
 def test_mock_provider_rejects_invalid_instrument_maps() -> None:
