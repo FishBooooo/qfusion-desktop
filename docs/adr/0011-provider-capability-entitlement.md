@@ -38,7 +38,9 @@ Adapter 输出必须转换为 `DataSourceRecord`，保留来源、许可、事�
 Repository、模型或 GUI。
 
 M2-A 的 `SyntheticMockMarketDataProvider` 只消费调用方传入的已验证合成事实，不访问网络、
-凭证或本地服务，并始终使用 `SYNTHETIC_MOCK` 与 `test-only` 许可标记。
+凭证或本地服务，并始终使用 `SYNTHETIC_MOCK` 与 `test-only` 许可标记。Adapter 在构造时
+深拷贝输入记录，并在每次返回时再次深拷贝，防止嵌套载荷被调用方修改后破坏后续结果和
+追溯一致性。
 
 ## 后果
 
