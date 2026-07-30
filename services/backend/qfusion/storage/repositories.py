@@ -213,7 +213,12 @@ class SqlAlchemyInstrumentRegistryRepository:
                     "ticker lookup returned overlapping persisted mappings"
                 )
             alias = self._restore_ticker_alias(rows[0])
-            self._require_registered_identity(session, alias.instrument_id, alias.market, alias.available_at)
+            self._require_registered_identity(
+                session,
+                alias.instrument_id,
+                alias.market,
+                alias.available_at,
+            )
             try:
                 return require_ticker_match(query, alias)
             except ValueError as error:
