@@ -197,8 +197,8 @@ def test_retryable_status_honors_bounded_retry_after_then_succeeds() -> None:
 
     assert response.payload["status"] == "REQUEST_SUCCEEDED"
     assert calls == 2
-    assert 1.5 in clock.delays
-    assert 2.0 in clock.delays
+    assert clock.delays == [1.5, 0.5]
+    assert sum(clock.delays) == 2.0
 
 
 def test_transport_errors_retry_and_invalid_retry_after_is_bounded() -> None:
