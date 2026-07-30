@@ -61,6 +61,22 @@ M2-C2a 门禁已通过精确提交的 Linux/Windows 验证并合并；审计与�
   live request、Fixture、缓存或数据库记录。
 - 条款 URL、复核日期、署名和提示属于审计数据；真实凭证仍不得进入策略、日志或仓库。
 
+## M2-D1 BLS v1 公共出站边界
+
+- 只允许固定 HTTPS origin `api.bls.gov:443` 与固定 v1 timeseries POST 路径；调用方
+  只能提供经过契约验证的序列 ID 和年份，不能提供 URL。
+- 客户端禁用宿主代理与重定向，每次尝试前要求全部 DNS 结果为公网地址。
+- 请求体不包含 registration key；User-Agent 使用项目运行时声明的产品名与联系地址，
+  不保存用户凭证。
+- 每次最多 25 个序列和 10 年；项目内预算进一步限制为每日最多 25 次、并发 1，并对
+  响应大小、超时、重试和等待设硬上限。
+- `persistent_storage` 与 `model_processing` 在 Transport 前分别 fail closed；公开
+  展示、商业使用和再分发仍为 `UNVERIFIED`。
+- BLS v1 缺少 vintage 和真实 API 发布时间，因此所有事实只在 QFusion 首次收到响应后
+  可用，不根据月份或页面发布时间回填。
+- CI 只使用合成 Fixture 与 `httpx.MockTransport`；本候选不执行 live BLS 请求，也
+  尚未接入组合根、Scheduler、Raw Store 或 Repository。
+
 ## 后续必须实现
 
 - 每次启动的临时会话令牌和随机端口握手；
