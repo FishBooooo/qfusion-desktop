@@ -104,7 +104,7 @@ M1-D 已实现 `SnapshotBuilder`。它只接收 Repository Protocol、显式 fac
 M2-A 候选在 Provider 层新增 `ProviderCapability`、`ProviderAccessProfile`、
 `ProviderBarRequest` 以及结构化 `ProviderAdapter`/`MarketDataProvider` Protocol。产品技术能力
 与当前账户实际权限必须分开验证；市场数据的技术能力、数据质量、实时性、盘前盘后权限、
-周期与历史起点均按精确“市场 + 操作”键校验，不能跨键传播。请求同时使用内部 UUID 和
+周期按精确“市场 + 操作”键校验，历史起点进一步按 bar 周期校验，不能跨键或跨周期传播。请求同时使用内部 UUID 和
 供应商不透明标识，并按市场时区检查对应键的历史起点。Adapter 只返回
 `DataSourceRecord`。Synthetic Mock 不访问网络或凭证，完整决策见
 [ADR-0011](adr/0011-provider-capability-entitlement.md)。
@@ -214,7 +214,8 @@ M1-A 至 M1-E 均已通过 Linux 与 Windows 托管验证：
 - 恢复拒绝路径穿越、额外项、ZIP 链接、内容篡改和超限，且不覆盖已有目录；
 - 测试数据库、归档和原始对象只位于 Runner 仓库内临时目录；
 - Synthetic Mock 已通过统一 Adapter 边界提供 Point-in-Time bar 过滤，并验证技术能力
-  与账户权限不会跨市场或跨操作形成虚假组合；
+  与账户权限不会跨市场或跨操作形成虚假组合、不同 bar 周期不会共享错误历史起点，且
+  Adapter 不向调用方暴露可变的内部合成记录；
 - 尚未实现真实供应商连接、Instrument Registry、模型、订单或真实金融调用。
 
 M1 的退出条件、精确 Runner、Artifact 摘要和已知限制见
