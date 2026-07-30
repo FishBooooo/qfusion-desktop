@@ -40,7 +40,7 @@ def test_standalone_timezone_probe_forces_packaged_fallback(tmp_path: Path) -> N
         stdout=expected_stdout,
         stderr=b"",
     )
-    environment = {"SYSTEMROOT": r"C:\\Windows"}
+    environment = {"SYSTEMROOT": r"C:\Windows"}
 
     with patch(
         "scripts.smoke_backend_standalone.subprocess.run",
@@ -56,7 +56,7 @@ def test_standalone_timezone_probe_forces_packaged_fallback(tmp_path: Path) -> N
         arguments,
         cwd=executable.parent,
         env={
-            "SYSTEMROOT": r"C:\\Windows",
+            "SYSTEMROOT": r"C:\Windows",
             "PYTHONTZPATH": "",
         },
         stdin=subprocess.DEVNULL,
