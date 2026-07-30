@@ -45,7 +45,8 @@ class CaptureArguments:
 
 def _repository_path(path: Path, *, label: str) -> Path:
     candidate = path if path.is_absolute() else REPOSITORY_ROOT / path
-    candidate = Path(os.path.abspath(candidate))
+    # Deliberately normalize lexically: resolve() would follow a link before rejection.
+    candidate = Path(os.path.abspath(candidate))  # noqa: PTH100
     try:
         relative = candidate.relative_to(REPOSITORY_ROOT)
     except ValueError as error:
