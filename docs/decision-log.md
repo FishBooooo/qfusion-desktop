@@ -1,6 +1,6 @@
 # 架构决策日志
 
-最后更新：2026-07-30
+最后更新：2026-07-31
 
 本日志只登记重要决策及状态；完整背景和后果写入对应 ADR。任何改变核心方向的提议都必须先获得确认，再新增或替代 ADR。
 
@@ -21,6 +21,7 @@
 | [0013](adr/0013-sec-edgar-public-egress.md) | SEC submissions 使用固定公共出站、首次观察可用时间和采集/决策分离 | Accepted | 2026-07-30 |
 | [0014](adr/0014-manual-sec-official-capture.md) | SEC 官方响应只通过手动、短期、无秘密 Artifact 门禁采集 | Accepted | 2026-07-30 |
 | [0015](adr/0015-machine-enforced-provider-usage-policy.md) | 供应商用途许可结构化、逐用途校验并对禁止或未验证状态默认拒绝 | Accepted | 2026-07-30 |
+| [0016](adr/0016-bls-first-observed-macro-series.md) | BLS v1 宏观序列使用首次观察可用时间、行级修订和固定公共出站 | Accepted | 2026-07-31 |
 
 ## 状态定义
 
