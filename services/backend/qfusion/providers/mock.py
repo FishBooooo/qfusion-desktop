@@ -20,6 +20,8 @@ from qfusion.providers.contracts import (
     ProviderBarRequest,
     ProviderCapability,
     ProviderOperation,
+    ProviderUsagePolicy,
+    ProviderUsageStatus,
     validate_bar_request,
     validate_provider_access,
 )
@@ -75,6 +77,24 @@ _MOCK_CAPABILITY: Final = ProviderCapability(
     venue_scope="synthetic-us-hk",
     quality_level="synthetic",
     license_scope="test-only",
+    usage_policy=ProviderUsagePolicy(
+        terms_url=(
+            "https://github.com/FishBooooo/qfusion-desktop/blob/main/LICENSE"
+        ),
+        terms_checked_at=date(2026, 7, 30),
+        personal_research=ProviderUsageStatus.ALLOWED,
+        local_cache=ProviderUsageStatus.ALLOWED,
+        persistent_storage=ProviderUsageStatus.ALLOWED,
+        private_display=ProviderUsageStatus.ALLOWED,
+        public_display=ProviderUsageStatus.ALLOWED,
+        commercial_use=ProviderUsageStatus.PROHIBITED,
+        redistribution=ProviderUsageStatus.PROHIBITED,
+        model_processing=ProviderUsageStatus.ALLOWED,
+        attribution_required=False,
+        required_notices=(
+            "Synthetic test data only; never represent it as real financial data.",
+        ),
+    ),
     operations=(ProviderOperation.BARS,),
 )
 _MOCK_ACCESS: Final = ProviderAccessProfile(
