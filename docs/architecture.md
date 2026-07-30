@@ -258,10 +258,12 @@ M1-A 至 M1-E 均已通过 Linux 与 Windows 托管验证：
 - M2-B 已通过 Linux/Windows 门禁并合并，永久 UUID、ticker/供应商 ID 双时间映射、
   SQLite 迁移与 Repository 成为真实 Adapter 的前置边界；
 - M2-C1 已通过跨平台门禁并合并，实现 SEC submissions 的固定公共传输、纯解析、首次
-  观察时间与 Mock-only 测试，但尚未接入 Scheduler/Raw Store，也未验证官方响应或执行
-  live request；
-- 尚未实现 company facts、其他真实供应商、证券状态历史、公司行为、模型、订单或真实
-  金融调用。
+  观察时间与 Mock-only 测试，但尚未接入 Scheduler/Raw Store；
+- M2-C2a 已通过跨平台门禁并合并，实现手动、短期、无秘密的官方响应采集能力；验收没有
+  配置联系标识、执行 live request 或取得官方响应 Fixture，证据见
+  [M2-C2a 验收记录](m2c2a-acceptance.md)；
+- 尚未取得并审查官方 SEC 响应，也未实现 company facts、其他真实供应商、证券状态历史、
+  公司行为、模型、订单或真实金融调用。
 
 M2-A 已在精确提交 `a02b18e3375db91d870cef26c310d34a69aede68` 通过 Linux 与
 Windows 托管门禁，并通过 PR #11 squash 合并为
