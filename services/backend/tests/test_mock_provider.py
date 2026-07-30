@@ -186,8 +186,8 @@ def test_mock_provider_deep_copies_seed_and_returned_records() -> None:
     first_metadata = first[0].payload["metadata"]
     assert isinstance(first_metadata, dict)
     first_tags = first_metadata["tags"]
-    assert first_tags == ["seed"]
     assert isinstance(first_tags, list)
+    assert first_tags == ["seed"]
     first_tags.append("mutated-return")
 
     second = asyncio.run(provider.get_bars(make_request()))
