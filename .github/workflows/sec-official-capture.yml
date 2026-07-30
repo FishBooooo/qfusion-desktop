@@ -1,0 +1,97 @@
+name: SEC Official Response Capture
+
+on:
+  workflow_dispatch:
+    inputs:
+      cik:
+        description: Exact ten-digit public SEC CIK
+        required: true
+        default: "0000320193"
+        type: string
+
+concurrency:
+  group: sec-official-capture-${{ github.run_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Manual SEC capture gate
+    if: github.repository == 'FishBooooo/qfusion-desktop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate manual gate before provider network
+        shell: bash
+        env:
+          CIK: ${{ inputs.cik }}
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$CIK" =~ ^[0-9]{10}$ ]]; then
+            echo "SEC_CAPTURE_CONFIGURATION_INVALID: CIK must contain ten digits" >&2
+            exit 2
+          fi
+          if [[ -z "${SEC_USER_AGENT:-}" ]]; then
+            echo "SEC_CAPTURE_CONFIGURATION_INVALID: SEC_USER_AGENT secret is missing" >&2
+            exit 2
+          fi
+          /usr/bin/mkdir -p .tmp
+          umask 077
+          printf '%s' "$SEC_USER_AGENT" > .tmp/sec-user-agent.txt
+
+      - name: Install pinned project-local Python toolchain
+        shell: bash
+        run: |
+          ./scripts/install_tools_linux.sh
+          ./scripts/run_in_qfusion_env.sh uv sync --locked --all-extras
+
+      - name: Run network-free capture preflight
+        shell: bash
+        run: |
+          ./scripts/run_in_qfusion_env.sh uv run --locked ruff check services/backend scripts
+          ./scripts/run_in_qfusion_env.sh uv run --locked mypy
+          ./scripts/run_in_qfusion_env.sh uv run --locked python -m pytest \
+            services/backend/tests/test_sec_adapter.py \
+            services/backend/tests/test_sec_capture.py \
+            services/backend/tests/test_sec_contracts.py \
+            services/backend/tests/test_sec_parser.py \
+            services/backend/tests/test_sec_transport.py
+
+      - name: Capture one fixed-origin official response
+        shell: bash
+        env:
+          CIK: ${{ inputs.cik }}
+          SOURCE_COMMIT: ${{ github.sha }}
+          SOURCE_RUN_ID: ${{ github.run_id }}
+        run: |
+          ./scripts/run_in_qfusion_env.sh uv run --locked python \
+            scripts/capture_sec_fixture.py \
+            --cik "$CIK" \
+            --user-agent-file .tmp/sec-user-agent.txt \
+            --source-commit "$SOURCE_COMMIT" \
+            --source-run-id "$SOURCE_RUN_ID"
+
+      - name: Upload short-lived audit bundle
+        uses: actions/upload-artifact@v6
+        with:
+          name: sec-official-capture-${{ inputs.cik }}-${{ github.run_id }}
+          path: .tmp/sec-official-capture/**
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1
+
+      - name: Remove runtime contact file
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -L .tmp/sec-user-agent.txt ]]; then
+            echo "SEC contact cleanup refused a symbolic link" >&2
+            exit 1
+          fi
+          /usr/bin/rm -f -- .tmp/sec-user-agent.txt
