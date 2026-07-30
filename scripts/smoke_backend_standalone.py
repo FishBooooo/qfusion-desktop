@@ -27,9 +27,13 @@ EXPECTED_HEALTH = {
     "data_mode": "synthetic-m0",
     "llm_mode": "off",
 }
-EXPECTED_TIMEZONE_ASSETS = (
-    "tzdata/zoneinfo/America/New_York",
-    "tzdata/zoneinfo/Asia/Hong_Kong",
+EXPECTED_TIMEZONE_KEYS = (
+    "America/New_York",
+    "Asia/Hong_Kong",
+)
+EXPECTED_TIMEZONE_ASSETS = tuple(
+    f"tzdata/zoneinfo/{timezone_key}"
+    for timezone_key in EXPECTED_TIMEZONE_KEYS
 )
 
 
@@ -244,6 +248,37 @@ def _verify_migration_assets(
         )
 
 
+def _verify_timezone_runtime(
+    executable: Path,
+    environment: dict[str, str],
+) -> tuple[str, ...]:
+    """Force the standalone executable to load project-packaged IANA data."""
+
+    arguments = [str(executable), "--verify-timezone-data"]
+    verification_environment = environment.copy()
+    verification_environment["PYTHONTZPATH"] = ""
+    completed = subprocess.run(  # noqa: S603
+        arguments,
+        cwd=executable.parent,
+        env=verification_environment,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        timeout=30.0,
+        check=False,
+    )
+    expected_line = (
+        f"QFUSION_TIMEZONE_DATA_OK zones={','.join(EXPECTED_TIMEZONE_KEYS)}"
+    ).encode()
+    if completed.returncode != 0 or completed.stdout.splitlines() != [expected_line]:
+        stdout = completed.stdout.decode("utf-8", errors="replace")
+        stderr = completed.stderr.decode("utf-8", errors="replace")
+        raise RuntimeError(
+            "Standalone timezone-data verification failed: "
+            f"exit={completed.returncode} stdout={stdout!r} stderr={stderr!r}"
+        )
+    return EXPECTED_TIMEZONE_KEYS
+
+
 def _allocate_dynamic_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as reservation:
         reservation.bind(("127.0.0.1", 0))
@@ -351,6 +386,7 @@ def main() -> None:
         }
     )
     _verify_migration_assets(executable, migration_heads, environment)
+    timezone_runtime_keys = _verify_timezone_runtime(executable, environment)
 
     port = _allocate_dynamic_port()
     environment["QFUSION_PORT"] = str(port)
@@ -375,6 +411,8 @@ def main() -> None:
         "migration_assets_verified_at": _utc_now(),
         "timezone_assets": list(timezone_assets),
         "timezone_assets_verified_at": _utc_now(),
+        "timezone_runtime_keys": list(timezone_runtime_keys),
+        "timezone_runtime_verified_at": _utc_now(),
         "port": port,
         "health_url": health_url,
     }
