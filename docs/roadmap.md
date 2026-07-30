@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M2-C2a SEC 官方响应手动采集门禁为候选；尚未执行 live request
+状态：M2-C2a SEC 官方响应手动采集门禁已验收并合并；尚未执行 live request
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -218,7 +218,7 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 
 ## M2：首批数据适配器
 
-状态：M2-A、M2-B 与 M2-C1 已通过跨平台 Runner 验证并合并；M2-C 继续实施。
+状态：M2-A、M2-B、M2-C1 与 M2-C2a 已通过跨平台 Runner 验证并合并；M2-C 继续实施。
 
 实现 SEC、FRED、一个美股行情源、一个港股行情源和必要的 Mock Adapter。逐一验证许可、
 字段、限流、时区、休市和延迟状态。
@@ -356,16 +356,22 @@ M2-C1 的精确提交、Linux/Windows Runner、Artifact 与隔离证据见
 M2-C1 只完成安全采集边界，不代表 SEC 在线接入或整个 M2-C 完成。CIK 只能作为 SEC
 供应商不透明标识通过 Instrument Registry 解析。
 
-#### M2-C2a：官方响应手动采集门禁（候选）
+#### M2-C2a：官方响应手动采集门禁（已验收，未执行 live request）
 
 - [x] Transport 保留有大小上限的精确原始字节，并验证其与解码对象一致；
 - [x] 生成不含联系标识的来源 URL、CIK、commit、run ID、时间、字节数和 SHA-256 清单；
 - [x] 仅允许 GitHub 手动触发，缺少 `SEC_USER_AGENT` 时在供应商网络前失败；
 - [x] 常规 CI/Windows 继续使用 Mock，手动 Artifact 只保留 1 天且不自动提交；
+- [x] 精确提交通过 Linux/Windows 跨平台回归、standalone 烟雾测试和 NSIS 构建；
 - [ ] 在默认分支配置合规联系标识并手动取得官方响应；
 - [ ] 审查响应和许可后固定最小官方 Fixture，并增加字段漂移测试。
 
-本候选只建立门禁，当前不会执行真实 SEC 请求，也不完成 Raw Store、Repository、
+采集门禁已通过 [PR #17](https://github.com/FishBooooo/qfusion-desktop/pull/17)
+squash 合并到 `main` 提交
+`bff5094302152f05cbf45162fe9b066743b08a8f`。精确 Runner、Artifact、摘要与隔离证据见
+[M2-C2a 验收记录](m2c2a-acceptance.md)。
+
+本验收只确认门禁实现，不代表已执行真实 SEC 请求，也不完成 Raw Store、Repository、
 Scheduler 或 company facts。完整决策见
 [ADR-0014](adr/0014-manual-sec-official-capture.md)。
 
