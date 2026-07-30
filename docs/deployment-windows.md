@@ -1,6 +1,6 @@
 # Windows 部署基线
 
-状态：M1 已验收；M2-A standalone 时区资产候选等待 Windows Runner 验证
+状态：M2-A standalone 时区资产已通过 Windows Runner 验证
 最后更新：2026-07-30
 
 ## 1. 交付目标
@@ -140,6 +140,21 @@ M1-B 的最终验证提交为 `03b1ea96e219dda90c33b02b56b8761352dc3e27`，来�
 - NSIS Artifact ID 8738590202，大小 1,248,650 bytes，ZIP SHA-256 为
   `c855c1046ff693b08771af59d044dc4277717c78c7b3bdc196bc727d29a4c07e`；
 - 两个产物计划于 2026-10-27 到期，仅作为回归证据。
+
+M2-A 精确提交 `a02b18e3375db91d870cef26c310d34a69aede68` 的
+[Windows run 30526872204](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30526872204)
+已通过：
+
+- Rust、Python、React 全部回归门禁通过，pytest 为 143 项；
+- standalone EXE SHA-256 为
+  `b4e40aaa346d9354b73d1e98c8f1b16abc973534afbb9235eff2bbbe171c0131`；
+- 清单验证两个 IANA 资产，compiled CLI 在空系统 `TZPATH` 下实际解析 US/HK 时区；
+- 动态健康烟雾 PID 7404 使用端口 62574，并在身份核验后停止；
+- 后端 Artifact ID 8754266230，ZIP SHA-256 为
+  `cfb128eeeb4b1f20e5e11be44a0b84bec09f2525663ba1ad376137786176e7b2`；
+- NSIS Artifact ID 8754267184，ZIP SHA-256 为
+  `0df92e0c91fa3130cddf0f662412415db7856052a5c35f335d65e3c2b6721abe`；
+- 两个 Artifact 计划于 2026-10-28 到期，只作为 M2-A 回归证据。
 
 CI 成功不能替代干净 Windows 10/11 实机的安装、首次启动、升级和卸载烟雾测试。
 

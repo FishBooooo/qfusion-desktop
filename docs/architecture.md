@@ -1,6 +1,6 @@
 # QFusion Desktop 架构基线
 
-状态：M1 已验收；M2-A 供应商能力与账户权限边界候选
+状态：M2-A 已验收；进入 M2-B Instrument Registry
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -101,7 +101,7 @@ M1-D 已实现 `SnapshotBuilder`。它只接收 Repository Protocol、显式 fac
 目标 UUID 和决策时间；Repository 查询后再次验证 Point-in-Time 边界，拒绝版本混用，确定
 性派生 as-of、缺失、过期、质量和内容指纹，再把通过 Domain 校验的快照写入 SQLite。
 
-M2-A 候选在 Provider 层新增 `ProviderCapability`、`ProviderAccessProfile`、
+M2-A 已在 Provider 层新增 `ProviderCapability`、`ProviderAccessProfile`、
 `ProviderBarRequest` 以及结构化 `ProviderAdapter`/`MarketDataProvider` Protocol。产品技术能力
 与当前账户实际权限必须分开验证；市场数据的技术能力、数据质量、实时性、盘前盘后权限、
 周期按精确“市场 + 操作”键校验。每个受支持 bar 周期必须且只能声明一个历史起点，
@@ -221,6 +221,12 @@ M1-A 至 M1-E 均已通过 Linux 与 Windows 托管验证：
   无系统 IANA 数据库时仍可解析 US/HK 市场时区，且 Adapter 不向调用方暴露可变的内部
   合成记录；
 - 尚未实现真实供应商连接、Instrument Registry、模型、订单或真实金融调用。
+
+M2-A 已在精确提交 `a02b18e3375db91d870cef26c310d34a69aede68` 通过 Linux 与
+Windows 托管门禁，并通过 PR #11 squash 合并为
+`f3ef3edcd0e3da7f9a903610168364bbccb87f81`。Linux 完成 143 项 pytest、前端回归、
+构建与动态 Loopback E2E；Windows 完成 Rust/Python/React 回归、Nuitka standalone
+时区与健康烟雾测试及 NSIS 构建。详细证据见 [roadmap.md](roadmap.md)。
 
 M1 的退出条件、精确 Runner、Artifact 摘要和已知限制见
 [M1 正式验收](m1-acceptance.md)；后续进度见 [roadmap.md](roadmap.md)。
