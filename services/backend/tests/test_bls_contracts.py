@@ -197,8 +197,11 @@ def test_request_gate_requires_declared_and_enabled_macro_operation() -> None:
     no_capability = provider.capability.model_copy(
         update={"operations": (ProviderOperation.FILINGS,)}
     )
+    filings_access = provider.access_profile.model_copy(
+        update={"enabled_operations": (ProviderOperation.FILINGS,)}
+    )
     with raises(ValueError, match="does not implement macro series"):
-        validate_bls_series_request(no_capability, provider.access_profile, request)
+        validate_bls_series_request(no_capability, filings_access, request)
 
     no_access = provider.access_profile.model_copy(update={"enabled_operations": ()})
     with raises(PermissionError, match="does not enable macro series"):
