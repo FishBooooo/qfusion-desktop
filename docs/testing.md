@@ -146,6 +146,32 @@ Registry 单元与集成测试必须覆盖：
 M2-B 不执行真实供应商网络、许可或凭证测试；这些门禁必须在每个真实 Adapter 切片中使用
 官方响应 Fixture 单独完成。
 
+
+### M2-B 实际验收证据
+
+精确测试提交 `6b6e48666c6645f1b843400ebace6ecbd4bf2c18` 已通过 Linux
+[CI run 30532454710](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30532454710)
+和 Windows
+[run 30532454713](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30532454713)。
+
+- Linux：Ruff、42 个源文件的 mypy、164 项 pytest、93.05% 覆盖率、2 项 Vitest、
+  Vite 构建和 1 项动态 Loopback E2E 全部通过；后端 PID/端口为 3657/34951，前端为
+  3667/37421，均在身份核验后停止；锁更新守卫和最终 `uv.lock` 无差异。
+- Windows：首次作业由平台异常结束且没有最终日志；代码不变的重跑作业
+  `90851781616` 通过 Rust、Ruff、mypy、164 项 pytest、93.05% 覆盖率、2 项 Vitest、
+  Nuitka standalone、compiled 迁移/时区验证、动态健康烟雾和 NSIS。
+- Windows EXE SHA-256 为
+  `a4fe52c8842a09db2852a03e074c3dd046e566ddbeb50c40682ed2cb0e857ba6`，
+  迁移 head 为 `0002_m2b_instruments`，烟雾测试 PID/端口为 748/58488。
+- 后端 Artifact ID 8758224936，ZIP SHA-256 为
+  `cea5f717645d5bf0519ffb00800c49913b4afb13b892590703c23865ab6267f1`；
+  NSIS Artifact ID 8758225748，ZIP SHA-256 为
+  `887c5c40cba5ac3383e973cd99b2f9ed7bc553cd8c66758e6aa2554502e4466f`。
+- PR #13 合并前无评论、评审提交或未解决线程，并已 squash 合并到 `main` 提交
+  `e927afb583aa1d0d7e5def0992c3066fdce39580`。
+
+M2-B 没有运行真实 SEC/FRED/行情供应商请求，也没有真实许可、凭证或账户权限验证。
+
 ## 后续金融测试门禁
 
 涉及行情、财务、新闻、预测或回测时，必须增加时区、交易日、截止时间、盘前盘后、复权、
