@@ -1,7 +1,7 @@
 # QFusion Desktop 路线图
 
-状态：M2-D0 供应商使用许可门禁已实现，等待跨平台验证；FRED 保持许可阻断
-最后更新：2026-07-30
+状态：M2-D0 供应商使用许可门禁已验收；FRED 保持许可阻断，M2 继续进行
+最后更新：2026-07-31
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
 ## 里程碑门禁
@@ -218,7 +218,7 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 
 ## M2：首批数据适配器
 
-状态：M2-A、M2-B、M2-C1 与 M2-C2a 已验收；M2-D0 实现等待跨平台门禁。
+状态：M2-A、M2-B、M2-C1、M2-C2a 与 M2-D0 已验收；M2 其余退出条件继续进行。
 
 实现 SEC、FRED、一个美股行情源、一个港股行情源和必要的 Mock Adapter。逐一验证许可、
 字段、限流、时区、休市和延迟状态。
@@ -386,7 +386,7 @@ Scheduler 或 company facts。完整决策见
 - [x] Synthetic Mock 与 SEC 声明显式用途策略，SEC 持久化校验位于 Transport 之前；
 - [x] 拒绝测试证明持久化被禁时不调用 SEC Transport；
 - [x] FRED 官方许可冲突和候选替代边界写入 ADR-0015 与供应商登记；
-- [ ] Linux/Windows exact-head 门禁与正式验收记录。
+- [x] Linux/Windows exact-head 门禁与正式验收记录。
 
 官方 FRED 条款当前禁止 API 内容的存储、缓存、归档以及软件/机器学习/AI 相关系统用途，
 与 QFusion 的本地持久化、离线可用和模型输入路径直接冲突。因此不创建 FRED Adapter、
@@ -394,6 +394,14 @@ Scheduler 或 company facts。完整决策见
 Treasury 等原始官方宏观来源只作为候选，需分别验证许可、修订和 Point-in-Time 语义。
 
 M2-D0 不新增依赖、不修改数据库、不执行真实供应商请求，也不完成 M2-D 的宏观数据接入。
+
+精确测试提交 `0ee020548c6e8fc25dffea7110ab347d743c9617` 已通过 Linux
+[CI run 30555808959](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30555808959)
+和 Windows
+[run 30556148216](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30556148216)，
+并通过 [PR #19](https://github.com/FishBooooo/qfusion-desktop/pull/19) squash 合并到
+`main` 提交 `b7959fb33cc92a704504e2887b0b5e5a8807c1e3`。完整测试、Artifact、隔离与
+许可保留项见 [M2-D0 验收记录](m2d0-acceptance.md)。
 
 ## M3：因子和特征系统
 
