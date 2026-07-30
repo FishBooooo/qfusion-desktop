@@ -643,7 +643,7 @@ def test_bar_request_checks_capability_entitlement_and_market_quality() -> None:
     with raises(PermissionError, match="does not enable bars"):
         validate_bar_request(quotes_capability, quotes_access, request)
 
-    with raises(PermissionError, match="no data"):
+    with raises(PermissionError, match="no bars for the requested market"):
         validate_bar_request(capability, make_access(market_data_quality=()), request)
 
 
