@@ -1,6 +1,6 @@
 # QFusion Desktop 架构基线
 
-状态：M2-C1 SEC submissions 采集边界候选
+状态：M2-C1 SEC submissions 采集边界已验收
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -136,7 +136,7 @@ Repository 持久化；如果在网络请求创建时就按决策时间过滤，
 入库。模型仍只能通过 Snapshot 读取 Repository 已通过
 `available_at <= decision_time` 的事实，因此采集可用性不会放宽防前视约束。SEC 的
 固定出站、时间语义和 company facts 延后条件见
-[ADR-0013](adr/0013-sec-edgar-public-egress.md)。
+[ADR-0013](adr/0013-sec-edgar-public-egress.md)。跨平台验收证据见 [M2-C1 验收记录](m2c1-acceptance.md)。
 
 ## 5. 模型数据流
 
@@ -252,8 +252,9 @@ M1-A 至 M1-E 均已通过 Linux 与 Windows 托管验证：
   合成记录；
 - M2-B 已通过 Linux/Windows 门禁并合并，永久 UUID、ticker/供应商 ID 双时间映射、
   SQLite 迁移与 Repository 成为真实 Adapter 的前置边界；
-- M2-C1 候选已实现 SEC submissions 的固定公共传输、纯解析、首次观察时间与 Mock-only
-  测试，但尚未接入 Scheduler/Raw Store，也未验证官方响应或执行 live request；
+- M2-C1 已通过跨平台门禁并合并，实现 SEC submissions 的固定公共传输、纯解析、首次
+  观察时间与 Mock-only 测试，但尚未接入 Scheduler/Raw Store，也未验证官方响应或执行
+  live request；
 - 尚未实现 company facts、其他真实供应商、证券状态历史、公司行为、模型、订单或真实
   金融调用。
 
