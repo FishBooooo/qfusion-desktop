@@ -1,6 +1,6 @@
 # QFusion Desktop 架构基线
 
-状态：M2-D0 供应商使用许可门禁已跨平台验收；M2 继续进行
+状态：M2-D1 BLS v1 首次观察宏观适配器候选；跨平台验收待完成
 最后更新：2026-07-31
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -167,6 +167,27 @@ FRED/ALFRED 当前条款禁止其内容的存储、缓存、归档和 AI/ML 相�
 本地优先持久化及模型路径冲突。因此不创建 FRED Adapter、不配置 key、不调用端点；后续
 宏观候选来源必须先通过同一用途许可门禁。
 
+### M2-D1 BLS v1 首次观察宏观边界
+
+```text
+BlsSeriesRequest (monthly, <= 25 series, <= 10 inclusive years)
+    -> capability + public access + storage/model usage gates
+    -> fixed-origin, no-proxy, no-redirect BLS v1 transport
+    -> exact response bytes + strict monthly parser
+    -> DataSourceRecord(available_at = first received_at)
+    -> future Repository/Snapshot integration
+```
+
+宏观序列不是证券资产。M2-D1 将 `ProviderCapability` 升级为 `3.0.0` 并增加
+`macro_series`；只有操作集合恰好为 `macro_series` 的 Provider 才允许空的
+`supported_asset_types`。这避免把 BLS 序列伪装成 stock、ETF 或 basket。
+
+BLS v1 没有历史 vintage、真实 API 发布时间或目录 metadata。月度 `event_time` 仅表示
+观察期第一天，`published_at`、`available_at` 和 `received_at` 均使用 QFusion 首次
+收到响应的时间。稳定期间键与观察行 SHA-256 共同形成不可变 revision/fact identity；
+后续变化形成新事实，不覆盖旧观察。固定出站、许可和限制见
+[ADR-0016](adr/0016-bls-first-observed-macro-series.md)。
+
 ## 5. 模型数据流
 
 ```text
@@ -288,7 +309,10 @@ M1-A 至 M1-E 均已通过 Linux 与 Windows 托管验证：
   [M2-C2a 验收记录](m2c2a-acceptance.md)；
 - M2-D0 已通过 Linux/Windows exact-head 门禁并合并；用途许可对禁止和未验证状态
   fail closed，SEC 持久化拒绝发生在 Transport 前，FRED/ALFRED 仍保持许可阻断；
-- 尚未取得并审查官方 SEC 响应，也未实现 company facts、其他真实供应商、证券状态历史、
+- M2-D1 BLS v1 候选已实现纯宏观 capability、固定公共出站、首次观察时间、行级修订和
+  Mock-only 测试；尚未完成 Linux/Windows exact-head 验收，也未执行 live BLS 请求；
+- 尚未取得并审查官方 SEC/BLS 响应，也未实现 company facts、BLS 持久化/调度、其他真实
+  供应商、证券状态历史、
   公司行为、模型、订单或真实金融调用。
 
 M2-A 已在精确提交 `a02b18e3375db91d870cef26c310d34a69aede68` 通过 Linux 与
