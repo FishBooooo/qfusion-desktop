@@ -1,6 +1,6 @@
 # QFusion Desktop 架构基线
 
-状态：M1-E 离线审计备份恢复候选，等待 Linux 与 Windows 验证
+状态：M1 本地存储与数据契约已正式验收
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -93,11 +93,11 @@ M1-B 已实现 SQLite `SnapshotRepository`。异步 Protocol 通过线程卸载�
 SQLAlchemy Session，避免阻塞 FastAPI 事件循环；Repository 只返回重新通过 Pydantic 与
 内容指纹验证的 Domain 对象，不向上层暴露 ORM Row。
 
-M1-C 候选实现 `DuckDBFactRepository`、`FactWriteQueue` 和
+M1-C 已实现 `DuckDBFactRepository`、`FactWriteQueue` 和
 `ContentAddressedRawStore`。DuckDB 只保存规范化 Domain JSON 和最小查询列，读取后同时
 校验内容指纹、索引列、Pydantic 契约及 Point-in-Time 守卫；业务层不接触 DuckDB SQL。
 
-M1-D 候选实现 `SnapshotBuilder`。它只接收 Repository Protocol、显式 fact type 分类政策、
+M1-D 已实现 `SnapshotBuilder`。它只接收 Repository Protocol、显式 fact type 分类政策、
 目标 UUID 和决策时间；Repository 查询后再次验证 Point-in-Time 边界，拒绝版本混用，确定
 性派生 as-of、缺失、过期、质量和内容指纹，再把通过 Domain 校验的快照写入 SQLite。
 
@@ -149,10 +149,11 @@ DuckDB 连接禁用扩展自动安装、自动加载和社区扩展，只允许�
 SQLite 决策见 [ADR-0007](adr/0007-sqlite-snapshot-metadata.md)，分析事实存储见
 [ADR-0008](adr/0008-duckdb-parquet-raw-fact-storage.md)。
 
-M1-E 候选把 SQLite Online Backup 快照、静止 DuckDB、非临时 Parquet 和 Raw Store 写入
+M1-E 已把 SQLite Online Backup 快照、静止 DuckDB、非临时 Parquet 和 Raw Store 写入
 带版本与逐文件 SHA-256 清单的 `.qfbak`。恢复先在新 staging 中完成路径、大小、摘要、
-SQLite integrity 和两种 Schema 校验，只能原子切换到不存在的新数据根，不覆盖当前数据。
-在跨存储在线写入屏障实现前，备份调用方必须先停止写入并关闭数据库句柄。完整决策见
+SQLite integrity 和两种 Schema 校验。恢复在服务内锁保护下要求目标不存在，再把 staging
+改名为目标；它不主动覆盖当前数据，但同一用户的外部进程若并发制造目标路径，仍属于已知
+竞态边界。在跨存储在线写入屏障实现前，备份调用方必须先停止写入并关闭数据库句柄。完整决策见
 [ADR-0010](adr/0010-offline-audited-backup-restore.md)。
 
 ## 7. 前端边界
@@ -179,7 +180,7 @@ SQLite integrity 和两种 Schema 校验，只能原子切换到不存在的新�
 M0 的 FastAPI 健康检查、React/Tauri 空壳、前后端 Mock 通信、Linux CI 和 Windows 构建
 基线继续有效。
 
-M1-A/M1-B 已验证，M1-C/M1-D/M1-E 候选新增验证：
+M1-A 至 M1-E 均已通过 Linux 与 Windows 托管验证：
 
 - Pydantic 类型和生成的 JSON Schema 必须确定性一致；
 - 所有时间必须带时区并规范化为 UTC；
@@ -204,4 +205,5 @@ M1-A/M1-B 已验证，M1-C/M1-D/M1-E 候选新增验证：
 - 测试数据库、归档和原始对象只位于 Runner 仓库内临时目录；
 - 尚未实现供应商连接、模型、订单或真实金融调用。
 
-进度和测试证据见 [roadmap.md](roadmap.md)。
+M1 的退出条件、精确 Runner、Artifact 摘要和已知限制见
+[M1 正式验收](m1-acceptance.md)；后续进度见 [roadmap.md](roadmap.md)。
