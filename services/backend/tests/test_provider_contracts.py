@@ -83,7 +83,8 @@ def make_request(**overrides: object) -> ProviderBarRequest:
         "start": DECISION_TIME - timedelta(days=5),
         "end": DECISION_TIME,
         "decision_time": DECISION_TIME,
-        "include_extended_hours": False,
+        "include_premarket": False,
+        "include_afterhours": False,
     }
     data.update(overrides)
     return ProviderBarRequest.model_validate(data)
@@ -408,6 +409,44 @@ def test_unavailable_market_entry_does_not_claim_market_data() -> None:
     assert validate_provider_access(capability, access) is access
 
 
+@mark.parametrize("field", ("allows_premarket", "allows_afterhours"))
+def test_unavailable_market_rejects_extended_hours_entitlement(field: str) -> None:
+    with raises(ValidationError, match="unavailable market data"):
+        MarketDataAccess.model_validate(
+            {
+                "market": Market.US,
+                "data_quality": DataDeliveryQuality.UNAVAILABLE,
+                field: True,
+            }
+        )
+
+
+def test_provider_access_rejects_unsupported_extended_hours_claims() -> None:
+    premarket_access = make_access(
+        market_data_quality=(
+            MarketDataAccess(
+                market=Market.US,
+                data_quality=DataDeliveryQuality.HISTORICAL,
+                allows_premarket=True,
+            ),
+        ),
+    )
+    with raises(ValueError, match="premarket"):
+        validate_provider_access(make_capability(), premarket_access)
+
+    afterhours_access = make_access(
+        market_data_quality=(
+            MarketDataAccess(
+                market=Market.US,
+                data_quality=DataDeliveryQuality.HISTORICAL,
+                allows_afterhours=True,
+            ),
+        ),
+    )
+    with raises(ValueError, match="after-hours"):
+        validate_provider_access(make_capability(), afterhours_access)
+
+
 def test_provider_access_requires_market_data_operation_for_quality_claim() -> None:
     capability = make_capability(
         operations=(ProviderOperation.NEWS,),
@@ -475,7 +514,7 @@ def test_bar_request_checks_capability_entitlement_and_market_quality() -> None:
         validate_bar_request(capability, make_access(market_data_quality=()), request)
 
 
-def test_bar_request_rejects_unsupported_market_interval_and_extended_hours() -> None:
+def test_bar_request_rejects_unsupported_market_and_interval() -> None:
     capability = make_capability()
     access = make_access()
 
@@ -487,12 +526,64 @@ def test_bar_request_rejects_unsupported_market_interval_and_extended_hours() ->
     with raises(ValueError, match="requested interval"):
         validate_bar_request(capability, access, minute_request)
 
-    extended_request = make_request(include_extended_hours=True)
-    with raises(ValueError, match="extended-hours"):
-        validate_bar_request(capability, access, extended_request)
 
-    extended_capability = make_capability(supports_premarket=True)
-    assert (
-        validate_bar_request(extended_capability, access, extended_request)
-        is extended_request
+def test_bar_request_checks_premarket_capability_and_account_access() -> None:
+    request = make_request(include_premarket=True)
+    access = make_access()
+
+    with raises(ValueError, match="premarket"):
+        validate_bar_request(make_capability(), access, request)
+
+    capability = make_capability(supports_premarket=True)
+    with raises(PermissionError, match="premarket"):
+        validate_bar_request(capability, access, request)
+
+    entitled_access = make_access(
+        market_data_quality=(
+            MarketDataAccess(
+                market=Market.US,
+                data_quality=DataDeliveryQuality.HISTORICAL,
+                allows_premarket=True,
+            ),
+        ),
     )
+    assert validate_bar_request(capability, entitled_access, request) is request
+
+
+def test_bar_request_checks_afterhours_capability_and_account_access() -> None:
+    request = make_request(include_afterhours=True)
+    access = make_access()
+
+    with raises(ValueError, match="after-hours"):
+        validate_bar_request(make_capability(), access, request)
+
+    capability = make_capability(supports_afterhours=True)
+    with raises(PermissionError, match="after-hours"):
+        validate_bar_request(capability, access, request)
+
+    entitled_access = make_access(
+        market_data_quality=(
+            MarketDataAccess(
+                market=Market.US,
+                data_quality=DataDeliveryQuality.HISTORICAL,
+                allows_afterhours=True,
+            ),
+        ),
+    )
+    assert validate_bar_request(capability, entitled_access, request) is request
+
+
+def test_bar_request_enforces_historical_start_in_market_timezone() -> None:
+    capability = make_capability(historical_start=date(2020, 1, 1))
+    access = make_access()
+    before_us_boundary = make_request(
+        start=datetime(2020, 1, 1, 1, 0, tzinfo=UTC),
+    )
+
+    with raises(ValueError, match="historical_start"):
+        validate_bar_request(capability, access, before_us_boundary)
+
+    at_us_boundary = make_request(
+        start=datetime(2020, 1, 1, 5, 0, tzinfo=UTC),
+    )
+    assert validate_bar_request(capability, access, at_us_boundary) is at_us_boundary
