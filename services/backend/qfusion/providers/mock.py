@@ -107,20 +107,28 @@ class SyntheticMockMarketDataProvider:
     def __init__(
         self,
         records: Sequence[DataSourceRecord],
-        instrument_map: Mapping[UUID, str],
+        instrument_map: Mapping[UUID, tuple[str, Market]],
     ) -> None:
         if not instrument_map:
             raise ValueError("instrument_map must not be empty")
 
-        normalized_map: dict[UUID, str] = {}
-        for instrument_id, provider_instrument_id in instrument_map.items():
+        normalized_map: dict[UUID, tuple[str, Market]] = {}
+        for instrument_id, mapping in instrument_map.items():
+            provider_instrument_id, market = mapping
             if (
                 not provider_instrument_id
                 or provider_instrument_id != provider_instrument_id.strip()
             ):
                 raise ValueError("provider instrument identifiers must be non-empty and trimmed")
-            normalized_map[instrument_id] = provider_instrument_id
-        if len(normalized_map.values()) != len(set(normalized_map.values())):
+            if not isinstance(market, Market):
+                raise ValueError("instrument markets must use the canonical Market enum")
+            normalized_map[instrument_id] = (provider_instrument_id, market)
+
+        provider_instrument_ids = [
+            provider_instrument_id
+            for provider_instrument_id, _market in normalized_map.values()
+        ]
+        if len(provider_instrument_ids) != len(set(provider_instrument_ids)):
             raise ValueError("provider instrument identifiers must be unique")
 
         selected = tuple(record.model_copy(deep=True) for record in records)
@@ -151,9 +159,12 @@ class SyntheticMockMarketDataProvider:
         """Return deterministic, scoped, Point-in-Time-safe synthetic bars."""
 
         validate_bar_request(self.capability, self.access_profile, request)
-        expected_provider_id = self._instrument_map.get(request.instrument_id)
-        if expected_provider_id is None:
+        instrument_mapping = self._instrument_map.get(request.instrument_id)
+        if instrument_mapping is None:
             raise LookupError("instrument_id is not mapped for the synthetic provider")
+        expected_provider_id, expected_market = instrument_mapping
+        if request.market is not expected_market:
+            raise ValueError("request market does not match the internal instrument mapping")
         if request.provider_instrument_id != expected_provider_id:
             raise ValueError(
                 "provider_instrument_id does not match the internal instrument mapping"
@@ -171,7 +182,7 @@ class SyntheticMockMarketDataProvider:
     @staticmethod
     def _validate_record(
         record: DataSourceRecord,
-        instrument_map: Mapping[UUID, str],
+        instrument_map: Mapping[UUID, tuple[str, Market]],
     ) -> None:
         if record.instrument_id is None or record.instrument_id not in instrument_map:
             raise ValueError("synthetic bar record must reference a mapped instrument_id")
