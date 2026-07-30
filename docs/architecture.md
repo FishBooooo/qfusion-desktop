@@ -1,7 +1,7 @@
 # QFusion Desktop 架构基线
 
-状态：M2-D0 供应商使用许可门禁已实现，等待跨平台验收
-最后更新：2026-07-30
+状态：M2-D0 供应商使用许可门禁已跨平台验收；M2 继续进行
+最后更新：2026-07-31
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
 ## 1. 目标与边界
@@ -286,6 +286,8 @@ M1-A 至 M1-E 均已通过 Linux 与 Windows 托管验证：
 - M2-C2a 已通过跨平台门禁并合并，实现手动、短期、无秘密的官方响应采集能力；验收没有
   配置联系标识、执行 live request 或取得官方响应 Fixture，证据见
   [M2-C2a 验收记录](m2c2a-acceptance.md)；
+- M2-D0 已通过 Linux/Windows exact-head 门禁并合并；用途许可对禁止和未验证状态
+  fail closed，SEC 持久化拒绝发生在 Transport 前，FRED/ALFRED 仍保持许可阻断；
 - 尚未取得并审查官方 SEC 响应，也未实现 company facts、其他真实供应商、证券状态历史、
   公司行为、模型、订单或真实金融调用。
 
