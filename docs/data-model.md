@@ -1,6 +1,6 @@
 # 数据模型基线
 
-状态：M1-D 可复现快照构建候选，等待跨平台验证
+状态：M1-E 离线审计备份恢复候选，等待跨平台验证
 最后更新：2026-07-30
 
 ## 1. 标识原则
@@ -179,5 +179,25 @@ raw/objects/<sha256[0:2]>/<sha256[2:4]>/<sha256><suffix>
 - 事实 ID、版本和质量列表均规范排序，`snapshot_id` 与 `created_at` 不参与内容指纹。
 
 相同请求、政策和 Repository 状态允许生成不同永久快照 ID，但必须得到相同
-`content_fingerprint()`。快照通过 Pydantic 校验后才写入 SQLite。M1-D 仍未实现备份恢复、
-供应商连接、模型、订单或真实金融数据。
+`content_fingerprint()`。快照通过 Pydantic 校验后才写入 SQLite。
+
+## 10. M1-E 备份清单
+
+`.qfbak` 的 `manifest.json` 使用 Schema `1.0.0`，至少包含：
+
+```text
+created_at
+sqlite_revision
+duckdb_schema_version
+entries[].relative_path
+entries[].byte_count
+entries[].sha256
+```
+
+`entries` 按规范 POSIX 相对路径排序且唯一，只能指向两个固定数据库文件、`parquet/` 或
+`raw/`。SQLite 和 DuckDB 版本必须同时匹配当前程序支持版本；恢复后再次执行 SQLite
+`integrity_check` 和两种 Schema 校验。
+
+M1-E 不把 `.tmp`、WAL、日志或数据根外文件写入归档。恢复目标必须不存在，成功前所有文件
+位于唯一 staging；因此恢复失败不会改变当前数据。当前仍未实现跨存储在线写入屏障、备份
+加密、恢复后的活动数据根切换、供应商连接、模型、订单或真实金融数据。

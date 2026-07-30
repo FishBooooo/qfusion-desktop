@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M1 进行中；M1-D 可复现快照构建候选等待跨平台验证
+状态：M1 进行中；M1-E 离线备份恢复候选等待跨平台验证
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -173,7 +173,7 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 - [x] 带相对路径、行数和 SHA-256 的不可变 Parquet 批次归档；
 - [x] SHA-256 内容寻址、幂等且拒绝损坏复用的 Raw Store；
 - [x] Mock 日线、分钟线、公告、新闻及篡改/路径边界测试；
-- [ ] Linux Runner 锁解析、Lint、类型检查、测试、构建与 E2E 全部通过；
+- [x] Linux Runner 锁解析、Lint、类型检查、测试、构建与 E2E 全部通过；
 - [ ] Windows Runner 原生模块打包、测试、standalone 与 NSIS 全部通过。
 
 ### M1-D：可复现 AnalysisSnapshot 构建候选
@@ -186,6 +186,18 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 - [x] 确定性 as-of、版本、缺失、过期、质量分数和内容指纹派生；
 - [x] 供应商/数据集版本冲突、重复事实、非法时钟和持久化失败处理；
 - [x] DuckDB Mock 事实到 SQLite 快照的真实 Repository 集成测试；
+- [x] Linux Runner Lint、类型检查、测试、构建与 E2E 全部通过；
+- [ ] Windows Runner 测试、standalone Sidecar 与 NSIS 全部通过。
+
+### M1-E：离线备份与安全恢复候选
+
+当前堆叠分支已实现但尚未通过最终 Runner 门禁：
+
+- [x] 版本化、规范化且逐文件记录 SHA-256 的 ZIP64 `.qfbak` 清单；
+- [x] SQLite 在线一致性副本、稳定 DuckDB 副本及 Parquet/Raw Store 受限归档；
+- [x] 路径穿越、符号链接、瞬态 WAL、重复/额外条目、篡改和资源上限拒绝；
+- [x] 流式解压到唯一暂存目录、Schema/完整性复验和目标不存在时原子提交；
+- [x] SQLite、DuckDB、Parquet 和 Raw Store 的 Repository 级往返恢复测试；
 - [ ] Linux Runner Lint、类型检查、测试、构建与 E2E 全部通过；
 - [ ] Windows Runner 测试、standalone Sidecar 与 NSIS 全部通过。
 
@@ -195,7 +207,7 @@ M1 尚未完成，当前门禁为：
 - [ ] DuckDB/Parquet 分析存储和单写入队列（等待 M1-C 验证）；
 - [ ] Repository 物理实现与 Mock 日线、分钟线、公告、新闻读写（等待 M1-C 验证）；
 - [ ] 可复现快照构建服务（等待 M1-D 验证）；
-- [ ] 备份与恢复。
+- [ ] 备份与恢复（等待 M1-E 验证）。
 
 ## M2：首批数据适配器
 

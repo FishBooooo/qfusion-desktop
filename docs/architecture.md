@@ -1,6 +1,6 @@
 # QFusion Desktop 架构基线
 
-状态：M1-D 可复现快照构建候选，等待 Linux 与 Windows 验证
+状态：M1-E 离线审计备份恢复候选，等待 Linux 与 Windows 验证
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -149,6 +149,12 @@ DuckDB 连接禁用扩展自动安装、自动加载和社区扩展，只允许�
 SQLite 决策见 [ADR-0007](adr/0007-sqlite-snapshot-metadata.md)，分析事实存储见
 [ADR-0008](adr/0008-duckdb-parquet-raw-fact-storage.md)。
 
+M1-E 候选把 SQLite Online Backup 快照、静止 DuckDB、非临时 Parquet 和 Raw Store 写入
+带版本与逐文件 SHA-256 清单的 `.qfbak`。恢复先在新 staging 中完成路径、大小、摘要、
+SQLite integrity 和两种 Schema 校验，只能原子切换到不存在的新数据根，不覆盖当前数据。
+在跨存储在线写入屏障实现前，备份调用方必须先停止写入并关闭数据库句柄。完整决策见
+[ADR-0010](adr/0010-offline-audited-backup-restore.md)。
+
 ## 7. 前端边界
 
 - 服务端状态由 TanStack Query 管理。
@@ -173,7 +179,7 @@ SQLite 决策见 [ADR-0007](adr/0007-sqlite-snapshot-metadata.md)，分析事实
 M0 的 FastAPI 健康检查、React/Tauri 空壳、前后端 Mock 通信、Linux CI 和 Windows 构建
 基线继续有效。
 
-M1-A/M1-B 已验证，M1-C/M1-D 候选新增验证：
+M1-A/M1-B 已验证，M1-C/M1-D/M1-E 候选新增验证：
 
 - Pydantic 类型和生成的 JSON Schema 必须确定性一致；
 - 所有时间必须带时区并规范化为 UTC；
@@ -192,7 +198,10 @@ M1-A/M1-B 已验证，M1-C/M1-D 候选新增验证：
 - 相同请求和事实状态的两次构建具有相同内容指纹，身份与创建时间不参与指纹；
 - as-of 使用最大事件时间，版本混用、重复 fact ID、非法时钟和持久化失败均被拒绝；
 - DuckDB Mock 日线、分钟线、公告和新闻可以生成并从 SQLite 读回同一快照；
+- SQLite、DuckDB、Parquet 和 Raw Store 可归档并恢复到新目录，原 Repository 可重新读取；
+- 备份跳过 Parquet 临时目录，发现 WAL、符号链接、变化文件或未知 Schema 时拒绝；
+- 恢复拒绝路径穿越、额外项、ZIP 链接、内容篡改和超限，且不覆盖已有目录；
 - 测试数据库、归档和原始对象只位于 Runner 仓库内临时目录；
-- 尚未实现快照构建、备份恢复、供应商连接、模型、订单或真实金融调用。
+- 尚未实现供应商连接、模型、订单或真实金融调用。
 
 进度和测试证据见 [roadmap.md](roadmap.md)。
