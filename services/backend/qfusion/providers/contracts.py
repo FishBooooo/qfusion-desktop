@@ -46,6 +46,11 @@ class DataInterval(StrEnum):
     DAY_1 = "1d"
 
 
+_DATA_INTERVAL_ORDER = {
+    interval: index for index, interval in enumerate(DataInterval)
+}
+
+
 class ProviderOperation(StrEnum):
     """Operations an adapter may technically implement or an account may enable."""
 
@@ -142,7 +147,7 @@ class MarketDataCapability(ProviderContract):
     ) -> tuple[DataInterval, ...]:
         if len(values) != len(set(values)):
             raise ValueError("supported_intervals must be unique")
-        return tuple(sorted(values, key=lambda item: item.value))
+        return tuple(sorted(values, key=_DATA_INTERVAL_ORDER.__getitem__))
 
     @model_validator(mode="after")
     def validate_market_data_capability(self) -> Self:
