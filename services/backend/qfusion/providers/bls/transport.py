@@ -134,8 +134,14 @@ class BlsHttpTransport:
 
         await self._client.aclose()
 
+    def _current_utc(self) -> datetime:
+        value = self._utc_now()
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise BlsTransportError("BLS transport clock must be timezone-aware")
+        return value.astimezone(UTC)
+
     async def _consume_request_slot(self) -> None:
-        request_day = self._utc_now().astimezone(UTC).date()
+        request_day = self._current_utc().date()
         if request_day != self._request_day:
             self._request_day = request_day
             self._requests_today = 0
@@ -241,7 +247,7 @@ class BlsHttpTransport:
                                 return BlsJsonResponse(
                                     payload=payload,
                                     raw_body=raw_body,
-                                    received_at=self._utc_now(),
+                                    received_at=self._current_utc(),
                                     content_type=response.headers.get("Content-Type"),
                                 )
                             except ValidationError as error:
