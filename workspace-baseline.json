@@ -59,6 +59,7 @@
     "docs/adr/0012-point-in-time-instrument-registry.md",
     "docs/adr/0013-sec-edgar-public-egress.md",
     "docs/adr/0014-manual-sec-official-capture.md",
+    "docs/adr/0015-machine-enforced-provider-usage-policy.md",
     "fixtures/sec/README.md",
     "fixtures/sec/submissions-schema-fixture.json",
     "schemas/analysis_snapshot.schema.json",
