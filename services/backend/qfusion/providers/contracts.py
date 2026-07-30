@@ -128,16 +128,23 @@ class RateLimitPolicy(ProviderContract):
     max_concurrent: int | None = Field(default=None, ge=1)
 
 
+class BarHistoryWindow(ProviderContract):
+    """Earliest available bar date for one exact interval."""
+
+    interval: DataInterval
+    historical_start: date
+
+
 class MarketDataCapability(ProviderContract):
     """Technical capability for one exact market and market-data operation."""
 
     market: Market
     operation: ProviderOperation
     supported_intervals: tuple[DataInterval, ...] = ()
+    bar_history: tuple[BarHistoryWindow, ...] = ()
     supports_realtime: bool = False
     supports_premarket: bool = False
     supports_afterhours: bool = False
-    historical_start: date | None = None
 
     @field_validator("supported_intervals")
     @classmethod
@@ -149,14 +156,39 @@ class MarketDataCapability(ProviderContract):
             raise ValueError("supported_intervals must be unique")
         return tuple(sorted(values, key=_DATA_INTERVAL_ORDER.__getitem__))
 
+    @field_validator("bar_history")
+    @classmethod
+    def normalize_bar_history(
+        cls,
+        values: tuple[BarHistoryWindow, ...],
+    ) -> tuple[BarHistoryWindow, ...]:
+        intervals = [value.interval for value in values]
+        if len(intervals) != len(set(intervals)):
+            raise ValueError("bar_history must contain at most one start per interval")
+        return tuple(
+            sorted(
+                values,
+                key=lambda item: _DATA_INTERVAL_ORDER[item.interval],
+            )
+        )
+
     @model_validator(mode="after")
     def validate_market_data_capability(self) -> Self:
         if self.operation not in _MARKET_DATA_OPERATIONS:
             raise ValueError("market data capability requires a market-data operation")
         if self.operation is ProviderOperation.BARS and not self.supported_intervals:
             raise ValueError("bars capability requires supported_intervals")
-        if self.operation is not ProviderOperation.BARS and self.supported_intervals:
-            raise ValueError("only bars capability may declare supported_intervals")
+        if self.operation is not ProviderOperation.BARS and (
+            self.supported_intervals or self.bar_history
+        ):
+            raise ValueError(
+                "only bars capability may declare supported_intervals or bar_history"
+            )
+        if any(
+            window.interval not in self.supported_intervals
+            for window in self.bar_history
+        ):
+            raise ValueError("bar_history references an unsupported interval")
         return self
 
 
@@ -510,10 +542,15 @@ def validate_bar_request(
     if request.interval not in scoped_capability.supported_intervals:
         raise ValueError("provider does not support the requested interval")
 
-    if scoped_capability.historical_start is not None:
+    history_by_interval = {
+        window.interval: window.historical_start
+        for window in scoped_capability.bar_history
+    }
+    historical_start = history_by_interval.get(request.interval)
+    if historical_start is not None:
         market_timezone = ZoneInfo(MARKET_TIMEZONES[request.market])
         request_start_date = request.start.astimezone(market_timezone).date()
-        if request_start_date < scoped_capability.historical_start:
+        if request_start_date < historical_start:
             raise ValueError("request starts before provider historical_start")
 
     if request.include_premarket:
