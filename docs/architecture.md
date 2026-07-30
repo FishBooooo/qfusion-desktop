@@ -103,8 +103,9 @@ M1-D 已实现 `SnapshotBuilder`。它只接收 Repository Protocol、显式 fac
 
 M2-A 候选在 Provider 层新增 `ProviderCapability`、`ProviderAccessProfile`、
 `ProviderBarRequest` 以及结构化 `ProviderAdapter`/`MarketDataProvider` Protocol。产品技术能力
-与当前账户实际权限、逐市场数据质量及盘前盘后权限必须分开验证；请求同时使用内部 UUID
-和供应商不透明标识，并按市场时区检查供应商历史起点。Adapter 只返回
+与当前账户实际权限必须分开验证；市场数据的技术能力、数据质量、实时性、盘前盘后权限、
+周期与历史起点均按精确“市场 + 操作”键校验，不能跨键传播。请求同时使用内部 UUID 和
+供应商不透明标识，并按市场时区检查对应键的历史起点。Adapter 只返回
 `DataSourceRecord`。Synthetic Mock 不访问网络或凭证，完整决策见
 [ADR-0011](adr/0011-provider-capability-entitlement.md)。
 
@@ -178,7 +179,8 @@ SQLite integrity 和两种 Schema 校验。恢复在服务内锁保护下要求�
 - 正式本地 API 使用临时会话认证、精确 CORS 和 localhost 绑定。
 - 导入路径与 Sidecar 参数使用白名单。
 - CI 中所有供应商与 LLM 调用必须 Mock。
-- 供应商产品能力不能替代当前账户的实时、盘前或盘后权限验证；凭证不进入 Provider Access 契约。
+- 供应商产品能力不能替代当前账户的实时、盘前或盘后权限验证；两者必须按精确市场与
+  操作键匹配，凭证不进入 Provider Access 契约。
 - 仓库中不存在实盘提交路由。
 - 开发工具链、依赖缓存和临时文件必须保留在仓库内，并从不继承科研、Conda、ROS、
   CUDA、容器或用户代理环境；完整决策见 [ADR-0006](adr/0006-project-local-toolchains.md)。
@@ -211,7 +213,8 @@ M1-A 至 M1-E 均已通过 Linux 与 Windows 托管验证：
 - 备份跳过 Parquet 临时目录，发现 WAL、符号链接、变化文件或未知 Schema 时拒绝；
 - 恢复拒绝路径穿越、额外项、ZIP 链接、内容篡改和超限，且不覆盖已有目录；
 - 测试数据库、归档和原始对象只位于 Runner 仓库内临时目录；
-- Synthetic Mock 已通过统一 Adapter 边界提供 Point-in-Time bar 过滤；
+- Synthetic Mock 已通过统一 Adapter 边界提供 Point-in-Time bar 过滤，并验证技术能力
+  与账户权限不会跨市场或跨操作形成虚假组合；
 - 尚未实现真实供应商连接、Instrument Registry、模型、订单或真实金融调用。
 
 M1 的退出条件、精确 Runner、Artifact 摘要和已知限制见
