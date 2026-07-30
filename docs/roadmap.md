@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M1 已正式验收；进入 M2 首批数据适配器
+状态：M2-A 已正式验收；进入 M2-B Instrument Registry
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -218,14 +218,14 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 
 ## M2：首批数据适配器
 
-状态：入口条件已满足；M2-A 候选等待跨平台 Runner 验证。
+状态：M2-A 已通过跨平台 Runner 验证并合并；进入 M2-B。
 
 实现 SEC、FRED、一个美股行情源、一个港股行情源和必要的 Mock Adapter。逐一验证许可、
 字段、限流、时区、休市和延迟状态。
 
 ### M2-A：供应商能力、账户权限与 Synthetic Mock
 
-候选范围：
+已验收范围：
 
 - [x] 供应商技术能力与当前账户实际权限使用两份独立、冻结的 Pydantic 契约；
 - [x] 能力声明覆盖市场、资产、产品特性、限流、venue、质量与许可；市场数据周期、实时、
@@ -240,12 +240,45 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 - [x] 锁定项目本地 `tzdata` 2026.3；Nuitka 显式包含并审计 US/HK 所需 IANA 资产，
   compiled CLI 在空系统 `TZPATH` 下实际解析两个时区；
 - [x] ADR-0011、供应商登记、测试和 Windows 部署文档已更新；
-- [ ] Linux Runner 的 Lint、mypy、pytest、前端回归、构建与动态 E2E；
-- [ ] Windows Runner 的 Rust、Python、前端、standalone Sidecar 与 NSIS 回归。
+- [x] Linux Runner 的 Lint、mypy、pytest、前端回归、构建与动态 E2E；
+- [x] Windows Runner 的 Rust、Python、前端、standalone Sidecar 与 NSIS 回归。
 
 M2-A 仅新增锁定的纯数据运行时依赖 `tzdata`，不改变任何既有依赖版本；不访问
-供应商网络端点、不读取凭证，也不实现真实供应商或 Instrument Registry。通过跨平台
-门禁并合并后进入 M2-B。
+供应商网络端点、不读取凭证，也不实现真实供应商或 Instrument Registry。
+
+[PR #11](https://github.com/FishBooooo/qfusion-desktop/pull/11) 的精确测试提交为
+`a02b18e3375db91d870cef26c310d34a69aede68`，已 squash 合并到 `main` 提交
+`f3ef3edcd0e3da7f9a903610168364bbccb87f81`。
+
+Linux 证据来自
+[CI run 30526872201](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30526872201)：
+
+- Ruff、41 个源文件的 mypy、143 项 pytest 和 93.24% 覆盖率通过；
+- 2 项 Vitest、TypeScript、生成契约、Vite 生产构建和动态 Loopback E2E 通过；
+- E2E 后端 PID 3692 使用动态端口 35475，前端 PID 3702 使用动态端口 42683；
+  两者均由测试持有并在身份核验后停止；
+- `uv.lock` 无漂移。
+
+Windows 证据来自
+[Windows run 30526872204](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30526872204)：
+
+- Rust fmt/clippy/test、Ruff、41 个源文件的 mypy、143 项 pytest、前端检查和
+  2 项 Vitest 通过；
+- Nuitka EXE SHA-256 为
+  `b4e40aaa346d9354b73d1e98c8f1b16abc973534afbb9235eff2bbbe171c0131`；
+- 迁移 head、两个 IANA 时区资产、compiled CLI 时区探针和动态健康烟雾测试通过；
+- 受控后端 PID 7404 使用动态端口 62574，并在身份核验后停止；
+- 后端 Artifact ID 8754266230，ZIP SHA-256 为
+  `cfb128eeeb4b1f20e5e11be44a0b84bec09f2525663ba1ad376137786176e7b2`；
+- NSIS Artifact ID 8754267184，ZIP SHA-256 为
+  `0df92e0c91fa3130cddf0f662412415db7856052a5c35f335d65e3c2b6721abe`；
+- 两个 Artifact 计划于 2026-10-28 到期，仅作为 M2-A 回归证据。
+
+### M2-B：Instrument Registry 与有效期映射
+
+下一切片只建立内部永久证券标识、带有效期的 ticker/供应商不透明标识映射、
+Repository 与迁移边界及 Mock 合约测试；不访问真实供应商、不注入凭证，也不把 ticker
+作为永久主键。完成并通过跨平台门禁后才进入 SEC/FRED 等真实 Adapter。
 
 ## M3：因子和特征系统
 
