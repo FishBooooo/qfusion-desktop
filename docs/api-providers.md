@@ -77,7 +77,21 @@ M2-A 已在精确提交 `a02b18e3375db91d870cef26c310d34a69aede68` 通过 Linux 
 30526872201 与 Windows run 30526872204；compiled CLI 时区探针、standalone 健康烟雾
 测试和 NSIS 构建均成功。实现已通过 PR #11 合并到 `main`。
 
-## 4. 首批真实供应商计划
+## 4. M2-B 证券映射责任
+
+Adapter 不拥有永久证券主键。应用必须先通过 Instrument Registry 在显式
+`effective_at`/ `decision_time` 下解析：
+
+```text
+market + ticker -> instrument_id
+instrument_id + provider_name + market -> provider_instrument_id
+```
+
+然后才可构造 M2-A 的双标识请求。供应商不透明 ID 保持大小写和原始语义，不能被当作 ticker
+改写；任一市场、UUID 或供应商 ID 不匹配时都必须拒绝。M2-B 只用 Synthetic Mock 验证此
+链路，未调用任何真实端点。
+
+## 5. 首批真实供应商计划
 
 下表只表示已选实施方向，不表示已经连接、验证账户权限或获得再分发许可。
 
@@ -102,7 +116,7 @@ M2-A 已在精确提交 `a02b18e3375db91d870cef26c310d34a69aede68` 通过 Linux 
 真实 Adapter 必须使用官方响应 Fixture 做解析测试，CI 禁止调用真实端点。付费订阅、真实
 凭证注入和外部账户写入不在默认授权范围内。
 
-## 5. 后续门禁
+## 6. 后续门禁
 
 1. M2-B 先建立内部 Instrument Registry 与带有效期的供应商标识映射；ticker 不能作为
    永久主键。
