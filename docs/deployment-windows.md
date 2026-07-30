@@ -1,6 +1,6 @@
 # Windows 部署基线
 
-状态：M2-B Instrument Registry 迁移资产与 standalone 已通过 Windows Runner 验证
+状态：M2-C1 SEC Adapter 边界与 standalone 已通过 Windows Runner 验证
 最后更新：2026-07-30
 
 ## 1. 交付目标
@@ -178,6 +178,25 @@ M2-B 精确提交 `6b6e48666c6645f1b843400ebace6ecbd4bf2c18` 的
 
 首次作业在 standalone 步骤尚报告 `in_progress` 时被平台异常结束，且 GitHub 未生成该
 作业日志；同一 exact-head 的未修改重跑完整通过，因此未对代码或隔离策略做猜测性调整。
+
+
+M2-C1 精确提交 `8619df35f457efaf134b9796e1bc92cdb3e2c835` 的
+[Windows run 30543035477](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30543035477)
+已通过：
+
+- Rust、Python、React 回归门禁通过，pytest 为 189 项且总覆盖率 93%；
+- standalone EXE SHA-256 为
+  `0dfddd4f7ed1de1e17db9bf29287bf2fdeac7772fd436016307529d10cc65f0e`；
+- 唯一迁移 head `0002_m2b_instruments`、迁移资产和两个 IANA 时区资产验证通过；
+- 动态健康烟雾 PID 2044 使用端口 56056，并在身份核验后停止；
+- Tauri 生成 `QFusion Desktop_0.1.0_x64-setup.exe`；
+- 后端 Artifact ID 8760836913，大小 148,004,426 bytes，ZIP SHA-256 为
+  `34adaa806e9e7fd3db38e438ff77b3f071998c78c0bbbc80cd790bedb65f328c`；
+- NSIS Artifact ID 8760837971，大小 1,249,157 bytes，ZIP SHA-256 为
+  `bc58fa375c19f3e329128b76b3b5e8873d2e9f556d3fa73abbc6c6da6c2a2e02`；
+- 两个 Artifact 计划于 2026-08-06 到期，仅作为 M2-C1 回归证据。
+
+完整范围与 Linux 证据见 [M2-C1 验收记录](m2c1-acceptance.md)。
 
 CI 成功不能替代干净 Windows 10/11 实机的安装、首次启动、升级和卸载烟雾测试。
 

@@ -1,6 +1,6 @@
 # 数据供应商登记
 
-状态：M2-A/M2-B 已验收；M2-C1 SEC submissions 边界为候选，尚未执行真实供应商请求。
+状态：M2-A/M2-B/M2-C1 已验收；M2-C1 尚未执行真实供应商请求。
 最后更新：2026-07-30
 
 ## 1. 强制登记字段
@@ -97,12 +97,12 @@ instrument_id + provider_name + market -> provider_instrument_id
 
 | 切片 | 供应商 | 预期用途 | 当前状态 |
 | --- | --- | --- | --- |
-| M2-C | SEC EDGAR `data.sec.gov` | 美股 submissions、filings、company facts | C1 submissions recent 候选；官方响应与 company facts 待完成 |
+| M2-C | SEC EDGAR `data.sec.gov` | 美股 submissions、filings、company facts | C1 submissions recent 边界已验收；官方响应与 company facts 待完成 |
 | M2-D | FRED/ALFRED | 美国宏观与 vintage/realtime period | 官方契约研究完成；需要用户自带 API key |
 | M2-E | Tiingo | 美股 EOD/历史行情候选 | 官方契约研究完成；需要用户自带 token，许可待账户验证 |
 | M2-F | Longbridge OpenAPI | 港股行情候选 | 官方契约研究完成；实际账户行情权限必须运行时验证 |
 
-### 5.1 M2-C1 SEC submissions recent 边界（候选）
+### 5.1 M2-C1 SEC submissions recent 边界（已验收）
 
 | 字段 | 值 |
 | --- | --- |
@@ -127,7 +127,9 @@ QFusion 首次实际收到响应的时间记为 `available_at`，并返回事实
 真实发行人数据。当前实现未接入 Scheduler、Raw Store 或观察池，没有执行 live request，
 也未完成 company facts。进入下一切片前仍必须在隔离 Runner 中取得并审计官方响应 Fixture，
 记录原始摘要和字段漂移测试。完整决策见
-[ADR-0013](adr/0013-sec-edgar-public-egress.md)。
+[ADR-0013](adr/0013-sec-edgar-public-egress.md)，精确跨平台证据见
+[M2-C1 验收记录](m2c1-acceptance.md)。实现已通过 PR #15 合并到 `main` 提交
+`ab50e28c16c4dd6b8908ee7e37fdd2ab98bc65f0`。
 
 官方依据：
 
@@ -147,7 +149,7 @@ QFusion 首次实际收到响应的时间记为 `available_at`，并返回事实
 
 1. M2-B 的 Instrument Registry 已完成；真实 Adapter 只能接收其解析出的永久 UUID 与
    供应商不透明标识，ticker 不能作为永久主键。
-2. M2-C1 先完成 SEC submissions 采集边界；官方响应 Fixture、持久化与 company facts
+2. M2-C1 SEC submissions 采集边界已完成；官方响应 Fixture、持久化与 company facts
    仍是 M2-C 后续门禁。M2-D 至 M2-F 再逐个实现，且不共享供应商 SDK 类型。
 3. 每个 Adapter 必须覆盖限流、超时、重试、空响应、字段变化、时区、休市、修订和延迟
    标记测试。

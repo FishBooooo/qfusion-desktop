@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M2-C1 SEC submissions 采集边界为 PR #15 候选；M2-C 尚未完成
+状态：M2-C1 SEC submissions 采集边界已验收；M2-C 尚未完成
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -218,7 +218,7 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 
 ## M2：首批数据适配器
 
-状态：M2-A 与 M2-B 已通过跨平台 Runner 验证并合并；M2-C1 正在验证。
+状态：M2-A、M2-B 与 M2-C1 已通过跨平台 Runner 验证并合并；M2-C 继续实施。
 
 实现 SEC、FRED、一个美股行情源、一个港股行情源和必要的 Mock Adapter。逐一验证许可、
 字段、限流、时区、休市和延迟状态。
@@ -326,7 +326,7 @@ M2-B 已完成验收，允许进入 M2-C。
 
 ### M2-C：SEC EDGAR submissions、filings 与 company facts
 
-M2-C1 候选范围：
+M2-C1 已验收范围：
 
 - [x] 无凭证、filings-only 的 SEC capability/access 契约；
 - [x] 永久 `instrument_id` 与 Registry 解析的精确 10 位 CIK 请求边界；
@@ -346,10 +346,15 @@ M2-C 后续门禁：
 - [ ] 将原始响应写入 Raw Store，并通过 Repository 增量持久化 filing metadata；
 - [ ] 接入观察池 Scheduler、空响应/分页文件与字段漂移处理；
 - [ ] 只有在 accession 可证明关联 filing availability 后实现 company facts；
-- [ ] 完成最终 Linux/Windows exact-head 门禁与验收记录。
+- [x] 完成 M2-C1 Linux/Windows exact-head 门禁与验收记录。
 
-因此本切片即使代码门禁通过，也只完成 M2-C1 边界，不代表 SEC 在线接入或整个 M2-C
-完成。CIK 只能作为 SEC 供应商不透明标识通过 Instrument Registry 解析。
+M2-C1 的精确提交、Linux/Windows Runner、Artifact 与隔离证据见
+[M2-C1 验收记录](m2c1-acceptance.md)。实现已通过
+[PR #15](https://github.com/FishBooooo/qfusion-desktop/pull/15) squash 合并到 `main` 提交
+`ab50e28c16c4dd6b8908ee7e37fdd2ab98bc65f0`。
+
+M2-C1 只完成安全采集边界，不代表 SEC 在线接入或整个 M2-C 完成。CIK 只能作为 SEC
+供应商不透明标识通过 Instrument Registry 解析。
 
 ## M3：因子和特征系统
 
