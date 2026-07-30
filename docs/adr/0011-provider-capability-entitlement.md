@@ -37,7 +37,8 @@ Adapter 技术支持且账户实际验证后声明；盘前和盘后请求也必
 为保证上述市场时区边界在没有系统 IANA 数据库的干净 Windows 上仍确定可用，后端锁定
 项目本地 `tzdata`，Nuitka standalone 必须显式包含该包及其数据，并在构建清单与烟雾
 测试中校验 `America/New_York` 和 `Asia/Hong_Kong` 两个实际使用的 zoneinfo 资产。
-不得依赖或修改宿主机时区数据库。
+烟雾测试还必须清空 compiled CLI 的系统 `TZPATH` 并由独立可执行程序实际构造两个
+`ZoneInfo`；仅验证文件存在或哈希不能替代运行时验证。不得依赖或修改宿主机时区数据库。
 
 Adapter 输出必须转换为 `DataSourceRecord`，保留来源、许可、事件时间、`available_at`、
 修订、质量、供应商版本、数据集版本和原始载荷哈希；供应商 SDK 类型不能进入 Domain、
