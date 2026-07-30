@@ -50,6 +50,10 @@ class InstrumentRow(Base):
     market: Mapped[str] = mapped_column(String(8), nullable=False)
     asset_type: Mapped[str] = mapped_column(String(32), nullable=False)
     display_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    source: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_record_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    revision_id: Mapped[str] = mapped_column(String(128), nullable=False)
     registered_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
 
 
@@ -94,6 +98,7 @@ class TickerAliasRow(Base):
     available_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     source: Mapped[str] = mapped_column(String(128), nullable=False)
     source_record_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_version: Mapped[str] = mapped_column(String(128), nullable=False)
     revision_id: Mapped[str] = mapped_column(String(128), nullable=False)
 
 
