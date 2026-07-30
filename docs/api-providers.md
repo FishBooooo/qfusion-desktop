@@ -1,6 +1,6 @@
 # 数据供应商登记
 
-状态：M2-C2a 手动采集门禁为候选；尚未执行真实供应商请求。
+状态：M2-C2a 手动采集门禁已验收；尚未执行真实供应商请求。
 最后更新：2026-07-30
 
 ## 1. 强制登记字段
@@ -97,7 +97,7 @@ instrument_id + provider_name + market -> provider_instrument_id
 
 | 切片 | 供应商 | 预期用途 | 当前状态 |
 | --- | --- | --- | --- |
-| M2-C | SEC EDGAR `data.sec.gov` | 美股 submissions、filings、company facts | C1 submissions recent 边界已验收；官方响应与 company facts 待完成 |
+| M2-C | SEC EDGAR `data.sec.gov` | 美股 submissions、filings、company facts | C2a 手动采集门禁已验收；官方响应、持久化与 company facts 待完成 |
 | M2-D | FRED/ALFRED | 美国宏观与 vintage/realtime period | 官方契约研究完成；需要用户自带 API key |
 | M2-E | Tiingo | 美股 EOD/历史行情候选 | 官方契约研究完成；需要用户自带 token，许可待账户验证 |
 | M2-F | Longbridge OpenAPI | 港股行情候选 | 官方契约研究完成；实际账户行情权限必须运行时验证 |
@@ -131,15 +131,20 @@ QFusion 首次实际收到响应的时间记为 `available_at`，并返回事实
 [M2-C1 验收记录](m2c1-acceptance.md)。实现已通过 PR #15 合并到 `main` 提交
 `ab50e28c16c4dd6b8908ee7e37fdd2ab98bc65f0`。
 
-### 5.2 M2-C2a 官方响应采集门禁（候选）
+### 5.2 M2-C2a 官方响应采集门禁（已验收，未执行 live request）
 
 官方响应只能由默认分支的手动 GitHub 工作流取得。工作流先验证精确 CIK 和仓库 Secret
 `SEC_USER_AGENT`，再运行无网络 SEC 测试，最后通过 M2-C1 的固定 origin Transport
 执行一次请求。原始字节与解码对象必须一致，且受 10 MiB 默认、50 MiB 绝对上限保护。
 
 短期 Artifact 只包含原始响应和无秘密清单，保留 1 天，不自动写入仓库或 Raw Store。
-当前候选尚未执行 live request，也不代表官方 Fixture 已审查。完整决策见
+门禁实现的精确提交已通过 Linux/Windows 跨平台回归，并通过
+[PR #17](https://github.com/FishBooooo/qfusion-desktop/pull/17) squash 合并到 `main`
+提交 `bff5094302152f05cbf45162fe9b066743b08a8f`。完整证据见
+[M2-C2a 验收记录](m2c2a-acceptance.md)，设计决策见
 [ADR-0014](adr/0014-manual-sec-official-capture.md)。
+
+该验收没有执行 live request，也不代表官方 Fixture 已取得或审查。
 
 官方依据：
 
@@ -159,8 +164,9 @@ QFusion 首次实际收到响应的时间记为 `available_at`，并返回事实
 
 1. M2-B 的 Instrument Registry 已完成；真实 Adapter 只能接收其解析出的永久 UUID 与
    供应商不透明标识，ticker 不能作为永久主键。
-2. M2-C1 SEC submissions 采集边界已完成；官方响应 Fixture、持久化与 company facts
-   仍是 M2-C 后续门禁。M2-D 至 M2-F 再逐个实现，且不共享供应商 SDK 类型。
+2. M2-C1 SEC submissions 采集边界与 M2-C2a 手动采集门禁已完成；实际官方响应、
+   Fixture 审查、持久化与 company facts 仍是 M2-C 后续门禁。M2-D 至 M2-F 再逐个实现，
+   且不共享供应商 SDK 类型。
 3. 每个 Adapter 必须覆盖限流、超时、重试、空响应、字段变化、时区、休市、修订和延迟
    标记测试。
 4. M2-G 才接入观察池增量同步和 GUI 数据状态；在此之前不声明 M2 完成。
