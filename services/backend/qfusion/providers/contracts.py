@@ -184,11 +184,17 @@ class MarketDataCapability(ProviderContract):
             raise ValueError(
                 "only bars capability may declare supported_intervals or bar_history"
             )
-        if any(
-            window.interval not in self.supported_intervals
-            for window in self.bar_history
-        ):
+        history_intervals = {window.interval for window in self.bar_history}
+        supported_intervals = set(self.supported_intervals)
+        if history_intervals - supported_intervals:
             raise ValueError("bar_history references an unsupported interval")
+        if (
+            self.operation is ProviderOperation.BARS
+            and history_intervals != supported_intervals
+        ):
+            raise ValueError(
+                "bar_history must cover every supported interval exactly once"
+            )
         return self
 
 
