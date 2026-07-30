@@ -1,0 +1,396 @@
+"""Vendor-neutral provider capabilities, account access, and request contracts."""
+
+from __future__ import annotations
+
+from datetime import UTC, date, datetime
+from enum import StrEnum
+from typing import Annotated, Self
+from uuid import UUID
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
+
+from qfusion.domain import Market
+
+NonEmptyText = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=128),
+]
+
+
+class AssetType(StrEnum):
+    """Canonical first-phase asset classes exposed to provider adapters."""
+
+    STOCK = "stock"
+    ADR = "adr"
+    ETF = "etf"
+    SECTOR_ETF = "sector_etf"
+    BASKET = "basket"
+
+
+class DataInterval(StrEnum):
+    """Canonical bar intervals independent of vendor spellings."""
+
+    MINUTE_1 = "1m"
+    MINUTE_5 = "5m"
+    MINUTE_15 = "15m"
+    MINUTE_30 = "30m"
+    HOUR_1 = "1h"
+    DAY_1 = "1d"
+
+
+class ProviderOperation(StrEnum):
+    """Operations an adapter may technically implement or an account may enable."""
+
+    INSTRUMENT_SEARCH = "instrument_search"
+    INSTRUMENT_LOOKUP = "instrument_lookup"
+    SYMBOL_HISTORY = "symbol_history"
+    BARS = "bars"
+    QUOTES = "quotes"
+    TRADES = "trades"
+    STREAM_QUOTES = "stream_quotes"
+    FUNDAMENTALS = "fundamentals"
+    ESTIMATES = "estimates"
+    CORPORATE_ACTIONS = "corporate_actions"
+    NEWS = "news"
+    FILINGS = "filings"
+    EVENTS = "events"
+    OPTION_CHAIN = "option_chain"
+    OPTION_SNAPSHOT = "option_snapshot"
+    SHORT_INTEREST = "short_interest"
+    SHORT_VOLUME = "short_volume"
+    SOUTHBOUND_FLOW = "southbound_flow"
+
+
+class DataDeliveryQuality(StrEnum):
+    """Observed account-level delivery quality, not a vendor-wide promise."""
+
+    REALTIME = "REALTIME"
+    DELAYED = "DELAYED"
+    END_OF_DAY = "END_OF_DAY"
+    HISTORICAL = "HISTORICAL"
+    SYNTHETIC_MOCK = "SYNTHETIC_MOCK"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
+class ProviderAccessStatus(StrEnum):
+    """Whether an account access profile was actually verified."""
+
+    ENABLED = "ENABLED"
+    DISABLED = "DISABLED"
+    UNVERIFIED = "UNVERIFIED"
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("provider timestamps must be timezone-aware")
+    return value.astimezone(UTC)
+
+
+class ProviderContract(BaseModel):
+    """Immutable base for values crossing the provider boundary."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        frozen=True,
+        str_strip_whitespace=True,
+    )
+
+
+class RateLimitPolicy(ProviderContract):
+    """One documented request budget for one provider operation."""
+
+    operation: ProviderOperation
+    max_requests: int = Field(ge=1)
+    window_seconds: int = Field(ge=1)
+    max_concurrent: int | None = Field(default=None, ge=1)
+
+
+class ProviderCapability(ProviderContract):
+    """Versioned technical capability declared by an adapter implementation."""
+
+    schema_version: Annotated[str, StringConstraints(pattern=r"^1\.0\.0$")] = "1.0.0"
+    provider_name: NonEmptyText
+    provider_version: NonEmptyText
+    supported_markets: tuple[Market, ...]
+    supported_asset_types: tuple[AssetType, ...]
+    supported_intervals: tuple[DataInterval, ...] = ()
+    supports_realtime: bool
+    supports_premarket: bool
+    supports_afterhours: bool
+    supports_options: bool
+    supports_fundamentals: bool
+    supports_news: bool
+    supports_filings: bool
+    supports_streaming: bool
+    rate_limit: tuple[RateLimitPolicy, ...] = ()
+    historical_start: date | None = None
+    venue_scope: NonEmptyText
+    quality_level: NonEmptyText
+    license_scope: NonEmptyText
+    operations: tuple[ProviderOperation, ...]
+
+    @field_validator("supported_markets")
+    @classmethod
+    def normalize_markets(cls, values: tuple[Market, ...]) -> tuple[Market, ...]:
+        if not values:
+            raise ValueError("supported_markets must not be empty")
+        if len(values) != len(set(values)):
+            raise ValueError("supported_markets must be unique")
+        return tuple(sorted(values, key=lambda item: item.value))
+
+    @field_validator("supported_asset_types")
+    @classmethod
+    def normalize_asset_types(cls, values: tuple[AssetType, ...]) -> tuple[AssetType, ...]:
+        if not values:
+            raise ValueError("supported_asset_types must not be empty")
+        if len(values) != len(set(values)):
+            raise ValueError("supported_asset_types must be unique")
+        return tuple(sorted(values, key=lambda item: item.value))
+
+    @field_validator("supported_intervals")
+    @classmethod
+    def normalize_intervals(cls, values: tuple[DataInterval, ...]) -> tuple[DataInterval, ...]:
+        if len(values) != len(set(values)):
+            raise ValueError("supported_intervals must be unique")
+        return tuple(sorted(values, key=lambda item: item.value))
+
+    @field_validator("operations")
+    @classmethod
+    def normalize_operations(
+        cls,
+        values: tuple[ProviderOperation, ...],
+    ) -> tuple[ProviderOperation, ...]:
+        if not values:
+            raise ValueError("operations must not be empty")
+        if len(values) != len(set(values)):
+            raise ValueError("operations must be unique")
+        return tuple(sorted(values, key=lambda item: item.value))
+
+    @field_validator("rate_limit")
+    @classmethod
+    def normalize_rate_limits(
+        cls,
+        values: tuple[RateLimitPolicy, ...],
+    ) -> tuple[RateLimitPolicy, ...]:
+        operations = [value.operation for value in values]
+        if len(operations) != len(set(operations)):
+            raise ValueError("rate_limit must contain at most one policy per operation")
+        return tuple(sorted(values, key=lambda item: item.operation.value))
+
+    @model_validator(mode="after")
+    def validate_capability_consistency(self) -> Self:
+        operation_set = set(self.operations)
+        market_data_operations = {
+            ProviderOperation.BARS,
+            ProviderOperation.QUOTES,
+            ProviderOperation.TRADES,
+            ProviderOperation.STREAM_QUOTES,
+        }
+        if ProviderOperation.BARS in operation_set and not self.supported_intervals:
+            raise ValueError("bars capability requires supported_intervals")
+        if any(policy.operation not in operation_set for policy in self.rate_limit):
+            raise ValueError("rate_limit references an undeclared operation")
+        if (self.supports_premarket or self.supports_afterhours) and not (
+            operation_set & market_data_operations
+        ):
+            raise ValueError("extended-hours support requires a market-data operation")
+
+        feature_operations = (
+            (
+                self.supports_options,
+                {ProviderOperation.OPTION_CHAIN, ProviderOperation.OPTION_SNAPSHOT},
+                "options",
+            ),
+            (
+                self.supports_fundamentals,
+                {
+                    ProviderOperation.FUNDAMENTALS,
+                    ProviderOperation.ESTIMATES,
+                    ProviderOperation.CORPORATE_ACTIONS,
+                },
+                "fundamentals",
+            ),
+            (self.supports_news, {ProviderOperation.NEWS}, "news"),
+            (self.supports_filings, {ProviderOperation.FILINGS}, "filings"),
+            (self.supports_streaming, {ProviderOperation.STREAM_QUOTES}, "streaming"),
+        )
+        for enabled, related_operations, label in feature_operations:
+            has_operation = bool(operation_set & related_operations)
+            if enabled != has_operation:
+                raise ValueError(f"supports_{label} disagrees with declared operations")
+        return self
+
+
+class MarketDataAccess(ProviderContract):
+    """Observed data quality for one market under one access profile."""
+
+    market: Market
+    data_quality: DataDeliveryQuality
+
+
+class ProviderAccessProfile(ProviderContract):
+    """Verified account entitlement kept separate from technical capability."""
+
+    schema_version: Annotated[str, StringConstraints(pattern=r"^1\.0\.0$")] = "1.0.0"
+    provider_name: NonEmptyText
+    provider_version: NonEmptyText
+    status: ProviderAccessStatus
+    access_scope: NonEmptyText
+    verified_at: datetime | None = None
+    enabled_operations: tuple[ProviderOperation, ...] = ()
+    market_data_quality: tuple[MarketDataAccess, ...] = ()
+    notes: tuple[NonEmptyText, ...] = ()
+
+    @field_validator("verified_at")
+    @classmethod
+    def normalize_verified_at(cls, value: datetime | None) -> datetime | None:
+        return None if value is None else _as_utc(value)
+
+    @field_validator("enabled_operations")
+    @classmethod
+    def normalize_enabled_operations(
+        cls,
+        values: tuple[ProviderOperation, ...],
+    ) -> tuple[ProviderOperation, ...]:
+        if len(values) != len(set(values)):
+            raise ValueError("enabled_operations must be unique")
+        return tuple(sorted(values, key=lambda item: item.value))
+
+    @field_validator("market_data_quality")
+    @classmethod
+    def normalize_market_data_quality(
+        cls,
+        values: tuple[MarketDataAccess, ...],
+    ) -> tuple[MarketDataAccess, ...]:
+        markets = [value.market for value in values]
+        if len(markets) != len(set(markets)):
+            raise ValueError("market_data_quality must contain at most one entry per market")
+        return tuple(sorted(values, key=lambda item: item.market.value))
+
+    @field_validator("notes")
+    @classmethod
+    def normalize_notes(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        if len(values) != len(set(values)):
+            raise ValueError("notes must be unique")
+        return tuple(sorted(values))
+
+    @model_validator(mode="after")
+    def validate_access_state(self) -> Self:
+        has_available_market = any(
+            item.data_quality is not DataDeliveryQuality.UNAVAILABLE
+            for item in self.market_data_quality
+        )
+        if self.status is ProviderAccessStatus.ENABLED:
+            if self.verified_at is None:
+                raise ValueError("enabled access must have verified_at")
+            if not self.enabled_operations:
+                raise ValueError("enabled access must declare enabled_operations")
+        elif self.enabled_operations or has_available_market:
+            raise ValueError("disabled or unverified access cannot enable operations or data")
+        if self.status is ProviderAccessStatus.UNVERIFIED and self.verified_at is not None:
+            raise ValueError("unverified access cannot have verified_at")
+        return self
+
+
+class ProviderBarRequest(ProviderContract):
+    """Point-in-Time bar request using internal and provider-specific identifiers."""
+
+    instrument_id: UUID
+    provider_instrument_id: NonEmptyText
+    market: Market
+    interval: DataInterval
+    start: datetime
+    end: datetime
+    decision_time: datetime
+    include_extended_hours: bool = False
+
+    @field_validator("start", "end", "decision_time")
+    @classmethod
+    def normalize_timestamps(cls, value: datetime) -> datetime:
+        return _as_utc(value)
+
+    @model_validator(mode="after")
+    def validate_time_range(self) -> Self:
+        if self.start >= self.end:
+            raise ValueError("start must be earlier than end")
+        if self.end > self.decision_time:
+            raise ValueError("end must not be after decision_time")
+        return self
+
+    @property
+    def fact_type(self) -> str:
+        """Return the canonical fact type expected from this request."""
+
+        return "daily_bar" if self.interval is DataInterval.DAY_1 else "minute_bar"
+
+
+def validate_provider_access(
+    capability: ProviderCapability,
+    access: ProviderAccessProfile,
+) -> ProviderAccessProfile:
+    """Reject account permissions or quality claims unsupported by the adapter."""
+
+    if (
+        access.provider_name != capability.provider_name
+        or access.provider_version != capability.provider_version
+    ):
+        raise ValueError("access profile does not match provider capability identity")
+
+    capability_operations = set(capability.operations)
+    if any(operation not in capability_operations for operation in access.enabled_operations):
+        raise ValueError("access profile enables an unsupported operation")
+
+    supported_markets = set(capability.supported_markets)
+    if any(item.market not in supported_markets for item in access.market_data_quality):
+        raise ValueError("access profile declares an unsupported market")
+
+    market_data_operations = {
+        ProviderOperation.BARS,
+        ProviderOperation.QUOTES,
+        ProviderOperation.TRADES,
+        ProviderOperation.STREAM_QUOTES,
+    }
+    for item in access.market_data_quality:
+        if item.data_quality is DataDeliveryQuality.REALTIME and not capability.supports_realtime:
+            raise ValueError("access profile claims realtime data the adapter does not support")
+        if (
+            item.data_quality is not DataDeliveryQuality.UNAVAILABLE
+            and not (set(access.enabled_operations) & market_data_operations)
+        ):
+            raise ValueError("market data quality requires an enabled market-data operation")
+    return access
+
+
+def validate_bar_request(
+    capability: ProviderCapability,
+    access: ProviderAccessProfile,
+    request: ProviderBarRequest,
+) -> ProviderBarRequest:
+    """Validate one bar request against both technical and account-level boundaries."""
+
+    validate_provider_access(capability, access)
+    if ProviderOperation.BARS not in capability.operations:
+        raise ValueError("provider does not implement bars")
+    if ProviderOperation.BARS not in access.enabled_operations:
+        raise PermissionError("current provider access does not enable bars")
+    if request.market not in capability.supported_markets:
+        raise ValueError("provider does not support the requested market")
+    market_quality = {
+        item.market: item.data_quality for item in access.market_data_quality
+    }.get(request.market, DataDeliveryQuality.UNAVAILABLE)
+    if market_quality is DataDeliveryQuality.UNAVAILABLE:
+        raise PermissionError("current provider access has no data for the requested market")
+    if request.interval not in capability.supported_intervals:
+        raise ValueError("provider does not support the requested interval")
+    if request.include_extended_hours and not (
+        capability.supports_premarket or capability.supports_afterhours
+    ):
+        raise ValueError("provider does not support extended-hours bars")
+    return request
