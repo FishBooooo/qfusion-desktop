@@ -103,8 +103,9 @@ M1-D 已实现 `SnapshotBuilder`。它只接收 Repository Protocol、显式 fac
 
 M2-A 候选在 Provider 层新增 `ProviderCapability`、`ProviderAccessProfile`、
 `ProviderBarRequest` 以及结构化 `ProviderAdapter`/`MarketDataProvider` Protocol。产品技术能力
-与当前账户实际权限、逐市场数据质量必须分开验证；请求同时使用内部 UUID 和供应商不透明
-标识，Adapter 只返回 `DataSourceRecord`。Synthetic Mock 不访问网络或凭证，完整决策见
+与当前账户实际权限、逐市场数据质量及盘前盘后权限必须分开验证；请求同时使用内部 UUID
+和供应商不透明标识，并按市场时区检查供应商历史起点。Adapter 只返回
+`DataSourceRecord`。Synthetic Mock 不访问网络或凭证，完整决策见
 [ADR-0011](adr/0011-provider-capability-entitlement.md)。
 
 ## 5. 模型数据流
@@ -177,7 +178,7 @@ SQLite integrity 和两种 Schema 校验。恢复在服务内锁保护下要求�
 - 正式本地 API 使用临时会话认证、精确 CORS 和 localhost 绑定。
 - 导入路径与 Sidecar 参数使用白名单。
 - CI 中所有供应商与 LLM 调用必须 Mock。
-- 供应商产品能力不能替代当前账户权限验证；凭证不进入 Provider Access 契约。
+- 供应商产品能力不能替代当前账户的实时、盘前或盘后权限验证；凭证不进入 Provider Access 契约。
 - 仓库中不存在实盘提交路由。
 - 开发工具链、依赖缓存和临时文件必须保留在仓库内，并从不继承科研、Conda、ROS、
   CUDA、容器或用户代理环境；完整决策见 [ADR-0006](adr/0006-project-local-toolchains.md)。
