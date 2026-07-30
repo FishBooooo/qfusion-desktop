@@ -2,6 +2,7 @@
 
 from qfusion.providers.contracts import (
     AssetType,
+    BarHistoryWindow,
     DataDeliveryQuality,
     DataInterval,
     MarketDataAccess,
@@ -20,6 +21,7 @@ from qfusion.providers.mock import SyntheticMockMarketDataProvider
 
 __all__ = [
     "AssetType",
+    "BarHistoryWindow",
     "DataDeliveryQuality",
     "DataInterval",
     "MarketDataAccess",
