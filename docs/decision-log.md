@@ -20,6 +20,7 @@
 | [0012](adr/0012-point-in-time-instrument-registry.md) | 永久证券 UUID 与 ticker/供应商 ID 使用双时间边界和非重叠有效期映射 | Accepted | 2026-07-30 |
 | [0013](adr/0013-sec-edgar-public-egress.md) | SEC submissions 使用固定公共出站、首次观察可用时间和采集/决策分离 | Accepted | 2026-07-30 |
 | [0014](adr/0014-manual-sec-official-capture.md) | SEC 官方响应只通过手动、短期、无秘密 Artifact 门禁采集 | Accepted | 2026-07-30 |
+| [0015](adr/0015-machine-enforced-provider-usage-policy.md) | 供应商用途许可结构化、逐用途校验并对禁止或未验证状态默认拒绝 | Accepted | 2026-07-30 |
 
 ## 状态定义
 
