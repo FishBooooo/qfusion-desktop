@@ -11,9 +11,10 @@ from typing import cast
 from uuid import UUID
 
 from pydantic import JsonValue, ValidationError
-from pytest import raises
+from pytest import MonkeyPatch, raises
 
 from qfusion.domain import FactQuery, Market, require_point_in_time
+from qfusion.providers import ProviderUsageStatus
 from qfusion.providers.sec import (
     SecEdgarProvider,
     SecFilingRequest,
@@ -106,6 +107,27 @@ def test_adapter_filters_form_without_mutating_transport_payload() -> None:
     assert len(records) == 1
     assert records[0].payload["form"] == "10-K"
     assert transport.payload == payload
+
+
+def test_adapter_rejects_persistence_before_transport_when_terms_block_it(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    transport = FixtureTransport(load_fixture())
+    provider = SecEdgarProvider(transport)
+    blocked_policy = provider.capability.usage_policy.model_copy(
+        update={"persistent_storage": ProviderUsageStatus.PROHIBITED}
+    )
+    blocked_capability = provider.capability.model_copy(
+        update={"usage_policy": blocked_policy}
+    )
+    monkeypatch.setattr(
+        "qfusion.providers.sec.adapter._SEC_CAPABILITY",
+        blocked_capability,
+    )
+
+    with raises(PermissionError, match="BLOCKED_BY_PROVIDER_LICENSE"):
+        asyncio.run(provider.get_filings(request()))
+    assert transport.ciks == []
 
 
 def test_adapter_rejects_non_us_request_before_transport() -> None:
