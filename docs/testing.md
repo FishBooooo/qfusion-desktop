@@ -217,13 +217,32 @@ Scheduler 和 company facts 仍属于后续门禁。
 
 ## M2-C2a SEC 官方响应采集测试门禁
 
-常规 CI 继续禁止 live SEC。新增测试覆盖原始响应字节与解码对象一致性、字节上限、
-Content-Type、SHA-256、首次接收时间、CI commit/run 来源、无联系标识清单、精确字节写入
-和拒绝覆盖既有输出目录。
+常规 CI 继续禁止 live SEC。新增测试覆盖原始响应字节与解码对象一致性、Content-Length
+和流式字节上限、Content-Type、SHA-256、首次接收时间、CI commit/run 来源、无联系标识
+清单、精确字节写入和拒绝覆盖既有输出目录。
+
+精确提交 `d60c5f31302c558dd3d11789e6269335c9d6ce6f` 已通过 Linux
+[CI run 30549140882](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30549140882)
+和 Windows
+[run 30549332084](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30549332084)。
+
+- Linux：Ruff、50 个源文件的 mypy、194 项 pytest、92.73% 覆盖率、2 项 Vitest、
+  Vite 构建和动态 Loopback E2E 全部通过；后端 PID/端口为 3705/40059，前端为
+  3715/39763，均在身份核验后停止；所有既有 Python 包版本保持不变且 `uv.lock`
+  无漂移。
+- Windows：Rust、Ruff、mypy、194 项 pytest、92.73% 覆盖率、2 项 Vitest、Nuitka
+  standalone、动态健康烟雾、Tauri release 与 NSIS 全部通过；EXE SHA-256 为
+  `735904b477631faef8228b37a3acac9090f0c49939bada17853802ae49283f2a`，
+  烟雾测试 PID/端口为 5184/54597。
+- Artifact 元数据、候选修复记录与完整隔离说明见
+  [M2-C2a 验收记录](m2c2a-acceptance.md)。
+- 实现通过 [PR #17](https://github.com/FishBooooo/qfusion-desktop/pull/17) squash
+  合并到 `main` 提交 `bff5094302152f05cbf45162fe9b066743b08a8f`。
 
 独立手动工作流只有在默认分支存在合规的 `SEC_USER_AGENT` Secret 时才能在无网络
-Ruff、mypy 和 SEC pytest 通过后执行一次固定 origin 请求。该工作流尚未运行；因此当前
-只能报告“采集门禁候选”，不能报告官方响应 Fixture 或真实 SEC 可达性已验证。
+Ruff、mypy 和 SEC pytest 通过后执行一次固定 origin 请求。本验收没有配置 Secret、
+没有调度该工作流、没有执行 live request，因此不能报告官方响应 Fixture 或真实 SEC
+可达性已验证。
 
 ## 后续金融测试门禁
 
