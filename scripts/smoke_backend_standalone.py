@@ -27,6 +27,10 @@ EXPECTED_HEALTH = {
     "data_mode": "synthetic-m0",
     "llm_mode": "off",
 }
+EXPECTED_TIMEZONE_ASSETS = (
+    "tzdata/zoneinfo/America/New_York",
+    "tzdata/zoneinfo/Asia/Hong_Kong",
+)
 
 
 class _RejectRedirects(HTTPRedirectHandler):
@@ -141,11 +145,58 @@ def _load_migration_assets(
     return expected_heads
 
 
-def _load_executable() -> tuple[Path, str, tuple[str, ...]]:
+def _load_timezone_assets(
+    manifest_value: dict[Any, Any],
+    executable: Path,
+) -> tuple[str, ...]:
+    timezone_value = manifest_value.get("timezone_assets")
+    if not isinstance(timezone_value, dict):
+        raise RuntimeError("Backend build manifest is missing timezone assets.")
+    if timezone_value.get("package") != "tzdata":
+        raise RuntimeError("Backend build manifest has an unexpected timezone package.")
+
+    files_value = timezone_value.get("files")
+    if not isinstance(files_value, list):
+        raise RuntimeError("Backend timezone asset records must be a list.")
+
+    expected_paths = set(EXPECTED_TIMEZONE_ASSETS)
+    actual_paths: set[str] = set()
+    for entry in files_value:
+        if not isinstance(entry, dict):
+            raise RuntimeError("Backend timezone asset records must be objects.")
+        relative_asset = _manifest_relative_path(
+            entry.get("path"),
+            "timezone asset path",
+        )
+        relative_name = relative_asset.as_posix()
+        if relative_name not in expected_paths or relative_name in actual_paths:
+            raise RuntimeError("Backend build manifest has an unexpected timezone asset.")
+        expected_sha256 = entry.get("sha256")
+        if not isinstance(expected_sha256, str):
+            raise RuntimeError("Backend timezone asset record is missing SHA-256.")
+
+        unresolved_asset = executable.parent / relative_asset
+        if unresolved_asset.is_symlink():
+            raise RuntimeError("Backend timezone assets must not be symlinks.")
+        asset = unresolved_asset.resolve(strict=True)
+        if not asset.is_relative_to(executable.parent) or not asset.is_file():
+            raise RuntimeError("Backend timezone asset escaped the standalone artifact.")
+        if _sha256(asset) != expected_sha256:
+            raise RuntimeError(
+                f"Backend timezone asset SHA-256 mismatch: {relative_name}"
+            )
+        actual_paths.add(relative_name)
+
+    if actual_paths != expected_paths:
+        raise RuntimeError("Backend build manifest is missing a required timezone asset.")
+    return tuple(sorted(actual_paths))
+
+
+def _load_executable() -> tuple[Path, str, tuple[str, ...], tuple[str, ...]]:
     manifest_value = json.loads(BUILD_MANIFEST.read_text(encoding="utf-8"))
     if not isinstance(manifest_value, dict):
         raise RuntimeError("Backend build manifest must be a JSON object.")
-    if manifest_value.get("schema_version") != 2:
+    if manifest_value.get("schema_version") != 3:
         raise RuntimeError("Backend build manifest schema is not supported.")
 
     relative_executable = manifest_value.get("executable")
@@ -162,7 +213,8 @@ def _load_executable() -> tuple[Path, str, tuple[str, ...]]:
         raise RuntimeError("Backend executable SHA-256 does not match the build manifest.")
 
     migration_heads = _load_migration_assets(manifest_value, executable)
-    return executable, expected_sha256, migration_heads
+    timezone_assets = _load_timezone_assets(manifest_value, executable)
+    return executable, expected_sha256, migration_heads, timezone_assets
 
 
 def _verify_migration_assets(
@@ -282,7 +334,12 @@ def _stop_owned_process(
 def main() -> None:
     """Verify migration assets, then start and stop the exact owned backend process."""
 
-    executable, executable_sha256, migration_heads = _load_executable()
+    (
+        executable,
+        executable_sha256,
+        migration_heads,
+        timezone_assets,
+    ) = _load_executable()
     environment = os.environ.copy()
     environment.update(
         {
@@ -307,15 +364,17 @@ def main() -> None:
     process: subprocess.Popen[bytes] | None = None
     recorded_pid: int | None = None
     journal: dict[str, object] = {
-        "schema_version": 2,
+        "schema_version": 3,
         "status": "starting",
-        "purpose": "QFusion Windows standalone migration and health smoke",
+        "purpose": "QFusion Windows standalone migration, timezone, and health smoke",
         "started_at": _utc_now(),
         "cwd": str(executable.parent),
         "executable": str(executable),
         "executable_sha256": executable_sha256,
         "migration_heads": list(migration_heads),
         "migration_assets_verified_at": _utc_now(),
+        "timezone_assets": list(timezone_assets),
+        "timezone_assets_verified_at": _utc_now(),
         "port": port,
         "health_url": health_url,
     }
@@ -362,7 +421,8 @@ def main() -> None:
     print(
         "QFUSION_STANDALONE_SMOKE_OK "
         f"pid={journal['pid']} port={port} sha256={executable_sha256} "
-        f"migration_heads={','.join(migration_heads)}"
+        f"migration_heads={','.join(migration_heads)} "
+        f"timezone_assets={len(timezone_assets)}"
     )
 
 
