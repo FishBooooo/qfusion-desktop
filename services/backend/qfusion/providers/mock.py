@@ -158,7 +158,6 @@ class SyntheticMockMarketDataProvider:
     async def get_bars(self, request: ProviderBarRequest) -> Sequence[DataSourceRecord]:
         """Return deterministic, scoped, Point-in-Time-safe synthetic bars."""
 
-        validate_bar_request(self.capability, self.access_profile, request)
         instrument_mapping = self._instrument_map.get(request.instrument_id)
         if instrument_mapping is None:
             raise LookupError("instrument_id is not mapped for the synthetic provider")
@@ -169,6 +168,7 @@ class SyntheticMockMarketDataProvider:
             raise ValueError(
                 "provider_instrument_id does not match the internal instrument mapping"
             )
+        validate_bar_request(self.capability, self.access_profile, request)
 
         return tuple(
             record.model_copy(deep=True)
