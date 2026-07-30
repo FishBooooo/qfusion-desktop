@@ -1,6 +1,6 @@
 # QFusion Desktop 架构基线
 
-状态：M2-B Instrument Registry 候选
+状态：M2-C1 SEC submissions 采集边界候选
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -118,6 +118,26 @@ M2-B 候选把内部永久 UUID、ticker 历史和供应商不透明 ID 映射�
 `instrument_id + provider_instrument_id + market`，不能自行把 ticker 升格为主键。完整决策见
 [ADR-0012](adr/0012-point-in-time-instrument-registry.md)。
 
+### M2-C1 SEC 采集与决策边界
+
+```text
+Instrument Registry (effective_at / decision_time)
+    -> instrument_id + sec-edgar CIK
+    -> fixed-origin SEC transport
+    -> strict submissions parser
+    -> DataSourceRecord(available_at = first received_at)
+    -> Fact Repository
+    -> Snapshot available_at <= decision_time
+    -> independent models
+```
+
+Provider Adapter 是采集边界，不是模型查询边界。它必须返回新观察到的可追溯事实供
+Repository 持久化；如果在网络请求创建时就按决策时间过滤，响应到达后的事实将永远无法
+入库。模型仍只能通过 Snapshot 读取 Repository 已通过
+`available_at <= decision_time` 的事实，因此采集可用性不会放宽防前视约束。SEC 的
+固定出站、时间语义和 company facts 延后条件见
+[ADR-0013](adr/0013-sec-edgar-public-egress.md)。
+
 ## 5. 模型数据流
 
 ```text
@@ -230,9 +250,12 @@ M1-A 至 M1-E 均已通过 Linux 与 Windows 托管验证：
   与账户权限不会跨市场或跨操作形成虚假组合、不同 bar 周期不会共享或缺省历史起点，
   无系统 IANA 数据库时仍可解析 US/HK 市场时区，且 Adapter 不向调用方暴露可变的内部
   合成记录；
-- M2-B 候选已实现永久 UUID、ticker/供应商 ID 双时间映射、SQLite 迁移与 Repository，
-  但尚未经过 Linux/Windows 托管门禁；
-- 尚未实现真实供应商连接、证券状态历史、公司行为、模型、订单或真实金融调用。
+- M2-B 已通过 Linux/Windows 门禁并合并，永久 UUID、ticker/供应商 ID 双时间映射、
+  SQLite 迁移与 Repository 成为真实 Adapter 的前置边界；
+- M2-C1 候选已实现 SEC submissions 的固定公共传输、纯解析、首次观察时间与 Mock-only
+  测试，但尚未接入 Scheduler/Raw Store，也未验证官方响应或执行 live request；
+- 尚未实现 company facts、其他真实供应商、证券状态历史、公司行为、模型、订单或真实
+  金融调用。
 
 M2-A 已在精确提交 `a02b18e3375db91d870cef26c310d34a69aede68` 通过 Linux 与
 Windows 托管门禁，并通过 PR #11 squash 合并为

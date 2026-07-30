@@ -45,6 +45,9 @@ time 当作 `available_at` 会给历史决策引入不可证明的提前可用�
    升级、降级或增加其他包。
 11. Windows 构建 Artifact 的未来保留期设为 7 天，减少公开仓库仍可能产生的 Actions
     存储占用；不删除既有 Artifact。
+12. 同一 PR 的 Linux/Windows workflow 使用 concurrency 取消过时运行；完整 Windows
+    打包在草稿阶段跳过，只在 ready-for-review 或手动触发时执行，避免每个小修复都重复
+    编译和上传。
 
 ## 后果
 

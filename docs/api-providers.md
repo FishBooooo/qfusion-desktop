@@ -1,6 +1,6 @@
 # 数据供应商登记
 
-状态：M2-A 供应商边界已验收；仅实现确定性 Synthetic Mock，尚未连接真实供应商。
+状态：M2-A/M2-B 已验收；M2-C1 SEC submissions 边界为候选，尚未执行真实供应商请求。
 最后更新：2026-07-30
 
 ## 1. 强制登记字段
@@ -97,10 +97,37 @@ instrument_id + provider_name + market -> provider_instrument_id
 
 | 切片 | 供应商 | 预期用途 | 当前状态 |
 | --- | --- | --- | --- |
-| M2-C | SEC EDGAR `data.sec.gov` | 美股 submissions、filings、company facts | 官方契约研究完成；未实现 |
+| M2-C | SEC EDGAR `data.sec.gov` | 美股 submissions、filings、company facts | C1 submissions recent 候选；官方响应与 company facts 待完成 |
 | M2-D | FRED/ALFRED | 美国宏观与 vintage/realtime period | 官方契约研究完成；需要用户自带 API key |
 | M2-E | Tiingo | 美股 EOD/历史行情候选 | 官方契约研究完成；需要用户自带 token，许可待账户验证 |
 | M2-F | Longbridge OpenAPI | 港股行情候选 | 官方契约研究完成；实际账户行情权限必须运行时验证 |
+
+### 5.1 M2-C1 SEC submissions recent 边界（候选）
+
+| 字段 | 值 |
+| --- | --- |
+| Provider | `sec-edgar` |
+| Provider version | `1.0.0` |
+| 市场/资产 | US；stock、ADR、ETF、sector ETF |
+| 当前操作 | filings：`submissions/CIK##########.json` 的 `filings.recent` |
+| 标识 | Instrument Registry 解析的内部 UUID + 精确 10 位 CIK |
+| 数据质量 | `official-public-filings` |
+| License scope | `public-government-content` |
+| 凭证 | 无；真实请求必须声明产品/组织和联系邮箱 |
+| 内部限流 | 每秒最多 5 次，并发 1 |
+| 网络 | 固定 `https://data.sec.gov:443`，禁代理、重定向和任意 URL |
+
+采集与决策查询严格分离。Adapter 把 SEC acceptance datetime 记为 `published_at`，把
+QFusion 首次实际收到响应的时间记为 `available_at`，并返回事实供 Repository
+持久化；模型不能直接调用 Adapter。后续 Repository 与 Snapshot Builder 才执行
+`available_at <= decision_time`，既不会丢弃刚采集的数据，也不会把它回填成历史时点
+已知事实。
+
+仓库 Fixture 只是依据公开字段说明手工构造的契约形状，明确不是 SEC 官方响应，也不包含
+真实发行人数据。当前实现未接入 Scheduler、Raw Store 或观察池，没有执行 live request，
+也未完成 company facts。进入下一切片前仍必须在隔离 Runner 中取得并审计官方响应 Fixture，
+记录原始摘要和字段漂移测试。完整决策见
+[ADR-0013](adr/0013-sec-edgar-public-egress.md)。
 
 官方依据：
 
@@ -118,9 +145,10 @@ instrument_id + provider_name + market -> provider_instrument_id
 
 ## 6. 后续门禁
 
-1. M2-B 先建立内部 Instrument Registry 与带有效期的供应商标识映射；ticker 不能作为
-   永久主键。
-2. M2-C 至 M2-F 逐个实现 Adapter，不共享供应商 SDK 类型。
+1. M2-B 的 Instrument Registry 已完成；真实 Adapter 只能接收其解析出的永久 UUID 与
+   供应商不透明标识，ticker 不能作为永久主键。
+2. M2-C1 先完成 SEC submissions 采集边界；官方响应 Fixture、持久化与 company facts
+   仍是 M2-C 后续门禁。M2-D 至 M2-F 再逐个实现，且不共享供应商 SDK 类型。
 3. 每个 Adapter 必须覆盖限流、超时、重试、空响应、字段变化、时区、休市、修订和延迟
    标记测试。
 4. M2-G 才接入观察池增量同步和 GUI 数据状态；在此之前不声明 M2 完成。

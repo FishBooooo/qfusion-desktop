@@ -172,6 +172,26 @@ M2-B 不执行真实供应商网络、许可或凭证测试；这些门禁必须
 
 M2-B 没有运行真实 SEC/FRED/行情供应商请求，也没有真实许可、凭证或账户权限验证。
 
+## M2-C1 SEC Adapter 测试门禁
+
+SEC 第一采集切片必须以无网络测试覆盖：
+
+- 10 位 CIK、US 市场、form 规范化、limit 和声明式 User-Agent 契约；
+- capability/access 只声明公开、无认证、filings-only 能力；
+- submissions 列式数组必需字段、等长校验、未知等长字段兼容、空数组和 CIK 匹配；
+- acceptance、report/filing date、首次观察时间、UTC、稳定 accession UUID 与 raw-row
+  SHA-256；
+- 采集返回新观察事实，历史决策由 `FactQuery`/Repository 守卫拒绝，观察时点及之后才
+  可用；
+- 固定 host/path/header、无重定向、无代理配置、公网 DNS 过滤、非法 CIK 与无效 JSON；
+- 429/选定 5xx/传输错误的有界重试、Retry-After 上限、非重试 4xx 和每秒 5 次串行限速；
+- 请求/载荷不变性，以及前后端、存储、迁移、standalone 与 NSIS 的完整回归。
+
+仓库中的 `fixtures/sec/submissions-schema-fixture.json` 是手工合成的公开 Schema
+形状，不是官方响应。它只能验证契约实现，不能替代后续官方响应 Fixture、真实 SEC
+可达性、许可复核、Raw Store 持久化、增量调度和 company facts 测试。CI 永远不得在
+常规测试中调用真实 SEC。
+
 ## 后续金融测试门禁
 
 涉及行情、财务、新闻、预测或回测时，必须增加时区、交易日、截止时间、盘前盘后、复权、
