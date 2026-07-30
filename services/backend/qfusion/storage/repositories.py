@@ -112,6 +112,10 @@ class SqlAlchemyInstrumentRegistryRepository:
             market=instrument.market.value,
             asset_type=instrument.asset_type.value,
             display_name=instrument.display_name,
+            source=instrument.source,
+            source_record_id=instrument.source_record_id,
+            source_version=instrument.source_version,
+            revision_id=instrument.revision_id,
             registered_at=instrument.registered_at,
         )
         try:
@@ -134,6 +138,7 @@ class SqlAlchemyInstrumentRegistryRepository:
             available_at=alias.available_at,
             source=alias.source,
             source_record_id=alias.source_record_id,
+            source_version=alias.source_version,
             revision_id=alias.revision_id,
         )
         try:
@@ -352,6 +357,10 @@ class SqlAlchemyInstrumentRegistryRepository:
                 market=Market(row.market),
                 asset_type=InstrumentAssetType(row.asset_type),
                 display_name=row.display_name,
+                source=row.source,
+                source_record_id=row.source_record_id,
+                source_version=row.source_version,
+                revision_id=row.revision_id,
                 registered_at=row.registered_at,
             )
         except (TypeError, ValueError) as error:
@@ -373,6 +382,7 @@ class SqlAlchemyInstrumentRegistryRepository:
                 available_at=row.available_at,
                 source=row.source,
                 source_record_id=row.source_record_id,
+                source_version=row.source_version,
                 revision_id=row.revision_id,
             )
         except (TypeError, ValueError) as error:
