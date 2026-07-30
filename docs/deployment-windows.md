@@ -198,6 +198,25 @@ M2-C1 精确提交 `8619df35f457efaf134b9796e1bc92cdb3e2c835` 的
 
 完整范围与 Linux 证据见 [M2-C1 验收记录](m2c1-acceptance.md)。
 
+M2-C2a 精确提交 `d60c5f31302c558dd3d11789e6269335c9d6ce6f` 的
+[Windows run 30549332084](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30549332084)
+已通过：
+
+- Rust、Python、React 全部回归门禁通过，pytest 为 194 项且总覆盖率 92.73%；
+- standalone EXE SHA-256 为
+  `735904b477631faef8228b37a3acac9090f0c49939bada17853802ae49283f2a`；
+- 清单验证唯一迁移 head `0002_m2b_instruments`、完整迁移资产和两个 IANA 时区资产；
+- 动态健康烟雾 PID 5184 使用端口 54597，并在身份核验后停止；
+- Tauri 生成 `QFusion Desktop_0.1.0_x64-setup.exe`；
+- 后端 Artifact ID 8763597635，大小 148,004,553 bytes，ZIP SHA-256 为
+  `f47ae394be68992d1cd8039739cb317fd1dacad737052057e0ff39ca17719243`；
+- NSIS Artifact ID 8763598519，大小 1,249,323 bytes，ZIP SHA-256 为
+  `7b749ffae13705207fcfc23b62597054932783081f049bca38772fe5173ec13d`；
+- 两个 Artifact 计划于 2026-08-06 到期，仅作为 M2-C2a 回归证据；
+- 该回归没有调度手动 SEC 工作流，也没有 live 供应商请求。
+
+完整范围与 Linux 证据见 [M2-C2a 验收记录](m2c2a-acceptance.md)。
+
 CI 成功不能替代干净 Windows 10/11 实机的安装、首次启动、升级和卸载烟雾测试。
 
 ## 7. 当前限制
