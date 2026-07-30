@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M2-B Instrument Registry 候选等待跨平台门禁
+状态：M2-B Instrument Registry 已验收并合并；进入 M2-C SEC EDGAR Adapter
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -218,7 +218,7 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 
 ## M2：首批数据适配器
 
-状态：M2-A 已通过跨平台 Runner 验证并合并；进入 M2-B。
+状态：M2-A 与 M2-B 已通过跨平台 Runner 验证并合并；进入 M2-C。
 
 实现 SEC、FRED、一个美股行情源、一个港股行情源和必要的 Mock Adapter。逐一验证许可、
 字段、限流、时区、休市和延迟状态。
@@ -276,7 +276,7 @@ Windows 证据来自
 
 ### M2-B：Instrument Registry 与有效期映射
 
-候选范围：
+已验收范围：
 
 - [x] 内部永久 UUID `instrument_id` 与静态市场/资产类型身份；
 - [x] ticker 大写规范化、供应商名称 casefold 和大小写保留的不透明供应商 ID；
@@ -285,12 +285,50 @@ Windows 证据来自
 - [x] SQLite 三表、复合市场外键、非重叠有效期触发器和可逆迁移；
 - [x] ticker 变化、复用、供应商 ID 变化、冲突、损坏和 Synthetic Mock 集成测试；
 - [x] ADR-0012、数据模型、架构与测试文档；
-- [ ] Linux Runner 的 Lint、mypy、pytest、前端回归、构建与动态 E2E；
-- [ ] Windows Runner 的迁移资产、Rust/Python/React、standalone Sidecar 与 NSIS 回归。
+- [x] Linux Runner 的 Lint、mypy、pytest、前端回归、构建与动态 E2E；
+- [x] Windows Runner 的迁移资产、Rust/Python/React、standalone Sidecar 与 NSIS 回归。
 
 M2-B 不新增依赖、不访问真实供应商、不注入凭证，也不把 ticker 作为永久主键。证券状态
-历史、公司行为、ISIN/FIGI 和真实 Adapter 仍不在本切片。完成跨平台门禁并合并后，才进入
-SEC/FRED 等真实 Adapter。
+历史、公司行为、ISIN/FIGI 和真实 Adapter 仍不在本切片。
+
+[PR #13](https://github.com/FishBooooo/qfusion-desktop/pull/13) 的精确测试提交为
+`6b6e48666c6645f1b843400ebace6ecbd4bf2c18`，已 squash 合并到 `main` 提交
+`e927afb583aa1d0d7e5def0992c3066fdce39580`。PR 合并前无评论、评审提交或未解决线程。
+
+Linux 证据来自
+[CI run 30532454710](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30532454710)：
+
+- Ruff、42 个源文件的 mypy、164 项 pytest 和 93.05% 覆盖率通过；
+- 2 项 Vitest、Vite 生产构建和动态 Loopback Playwright E2E 通过；
+- E2E 后端 PID 3657 使用端口 34951，前端 PID 3667 使用端口 37421；两者均由测试
+  持有进程句柄并在身份核验后停止；
+- `uv lock` 保持全部既有包版本不变，最终 `uv.lock` 无差异。
+
+Windows 证据来自
+[Windows run 30532454713](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30532454713)；
+首次作业在活动步骤尚标记 `in_progress` 时被平台异常结束且未生成日志，未修改代码的重跑
+作业 `90851781616` 随后通过：
+
+- Rust fmt/clippy/test、Ruff、42 个源文件的 mypy、164 项 pytest、前端检查和
+  2 项 Vitest 全部通过；
+- Nuitka EXE SHA-256 为
+  `a4fe52c8842a09db2852a03e074c3dd046e566ddbeb50c40682ed2cb0e857ba6`；
+- 打包迁移 head 为 `0002_m2b_instruments`，两个 IANA 时区资产和 compiled CLI
+  验证通过；
+- 动态健康烟雾 PID 748 使用端口 58488，并在身份核验后停止；
+- 后端 Artifact ID 8758224936，大小 148,004,573 bytes，ZIP SHA-256 为
+  `cea5f717645d5bf0519ffb00800c49913b4afb13b892590703c23865ab6267f1`；
+- NSIS Artifact ID 8758225748，大小 1,248,849 bytes，ZIP SHA-256 为
+  `887c5c40cba5ac3383e973cd99b2f9ed7bc553cd8c66758e6aa2554502e4466f`；
+- 两个 Artifact 计划于 2026-10-28 到期，仅作为 M2-B 回归证据。
+
+M2-B 已完成验收，允许进入 M2-C。
+
+### M2-C：SEC EDGAR submissions、filings 与 company facts
+
+下一切片将使用 SEC 官方 JSON Fixture 建立无凭证 Adapter、CI 网络隔离解析测试、公平访问
+限速与声明式 User-Agent、Point-in-Time 可用时间和修订边界。实现与真实端点验证必须分离，
+且 CIK 只能作为 SEC 供应商不透明标识通过 Instrument Registry 解析。
 
 ## M3：因子和特征系统
 
