@@ -1,6 +1,6 @@
 # 测试策略基线
 
-最后更新：2026-07-30
+最后更新：2026-07-31
 
 ## M0 测试层
 
@@ -258,6 +258,30 @@ Ruff、mypy 和 SEC pytest 通过后执行一次固定 origin 请求。本验收
 
 本切片不得配置 FRED key、调用 FRED/ALFRED、创建其响应 Fixture 或把相关内容写入
 Raw Store。FRED 许可冲突是预期门禁结果，不得通过放宽断言来使测试通过。
+
+### M2-D0 实际验收证据
+
+精确测试提交 `0ee020548c6e8fc25dffea7110ab347d743c9617` 已通过 Linux
+[CI run 30555808959](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30555808959)
+和 Windows
+[run 30556148216](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30556148216)。
+
+- Linux：Ruff、50 个源文件的 mypy、199 项 pytest、92.87% 覆盖率、2 项 Vitest、
+  Vite 构建和 1 项动态 Loopback E2E 全部通过；后端 PID/端口为 3652/37425，前端为
+  3663/40311，均在身份核验后停止；`uv.lock` 无漂移。
+- Windows：Rust、Ruff、mypy、199 项 pytest、92.87% 覆盖率、2 项 Vitest、Nuitka
+  standalone、动态健康烟雾、Tauri release 与 NSIS 全部通过；EXE SHA-256 为
+  `668ac8a25465cd633d3f19dc1dae4ed5acca35ce4e81988695579328965d8eda`，
+  烟雾测试 PID/端口为 8140/50797。
+- 后端 Artifact ID 8766509693，ZIP SHA-256 为
+  `c49efcd135b2a5d3240072c236c3abb4f179db58a0a68b6547308eebd96f9cc2`；
+  NSIS Artifact ID 8766510716，ZIP SHA-256 为
+  `eb438731c67c28a7af1bc143ee902a0513d55fc85d18d00de27bd8ab75218361`。
+- 实现通过 [PR #19](https://github.com/FishBooooo/qfusion-desktop/pull/19) squash
+  合并到 `main` 提交 `b7959fb33cc92a704504e2887b0b5e5a8807c1e3`。
+- 完整证据和许可保留项见 [M2-D0 验收记录](m2d0-acceptance.md)。
+
+本验收没有执行 FRED/ALFRED、live SEC 或其他真实供应商请求。
 
 ## 后续金融测试门禁
 
