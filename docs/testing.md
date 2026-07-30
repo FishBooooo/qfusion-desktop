@@ -102,7 +102,7 @@ M1 测试覆盖 Point-in-Time 时间边界、迁移、Repository 往返、单写
 与 Raw Store 完整性、可复现快照、备份恢复、恶意归档和 Windows 路径可移植性。完整矩阵、
 历史运行和限制见 [M1 正式验收](m1-acceptance.md)。
 
-## M2-A 候选测试门禁
+## M2-A 测试门禁与验收证据
 
 供应商边界单元测试必须覆盖：
 
@@ -123,6 +123,11 @@ standalone 构建，由清单验证两个 IANA 文件位于 Artifact 内，并�
 `TZPATH` 下实际解析两个时区。每个真实 Adapter
 进入后，必须另增官方响应
 Fixture、字段变化、限流、超时、重试、空响应、时区、休市、修订和账户权限 Contract 测试。
+
+M2-A 精确提交 `a02b18e3375db91d870cef26c310d34a69aede68` 已通过 Linux run
+30526872201 和 Windows run 30526872204：Linux 运行 143 项 pytest、2 项 Vitest、
+生产构建与 1 项动态 Loopback E2E；Windows 运行 Rust、Python、React 回归、Nuitka
+standalone compiled timezone/health smoke 与 NSIS 构建。9 个审查线程均已解决。
 
 ## 后续金融测试门禁
 
