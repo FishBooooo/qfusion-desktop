@@ -146,7 +146,7 @@ class SecHttpTransport:
                     parsed = 0.0
                 return float(min(parsed, self._config.max_retry_delay_seconds))
         exponential = 0.25 * (2**attempt)
-        return min(exponential, self._config.max_retry_delay_seconds)
+        return float(min(exponential, self._config.max_retry_delay_seconds))
 
     async def get_submissions(self, cik: str) -> SecJsonResponse:
         """Fetch a fixed submissions path; redirects and non-public DNS fail closed."""
