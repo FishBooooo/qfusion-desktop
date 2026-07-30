@@ -193,17 +193,17 @@ _TRIGGER_SQL = (
     _PROVIDER_REGISTRATION_UPDATE,
 )
 
-_TRIGGER_NAMES = (
-    "trg_ticker_alias_no_overlap_insert",
-    "trg_ticker_alias_no_overlap_update",
-    "trg_provider_identifier_no_overlap_insert",
-    "trg_provider_identifier_no_overlap_update",
-    "trg_provider_instrument_no_overlap_insert",
-    "trg_provider_instrument_no_overlap_update",
-    "trg_ticker_alias_registration_insert",
-    "trg_ticker_alias_registration_update",
-    "trg_provider_mapping_registration_insert",
-    "trg_provider_mapping_registration_update",
+_DROP_TRIGGER_SQL = (
+    "DROP TRIGGER IF EXISTS trg_ticker_alias_no_overlap_insert",
+    "DROP TRIGGER IF EXISTS trg_ticker_alias_no_overlap_update",
+    "DROP TRIGGER IF EXISTS trg_provider_identifier_no_overlap_insert",
+    "DROP TRIGGER IF EXISTS trg_provider_identifier_no_overlap_update",
+    "DROP TRIGGER IF EXISTS trg_provider_instrument_no_overlap_insert",
+    "DROP TRIGGER IF EXISTS trg_provider_instrument_no_overlap_update",
+    "DROP TRIGGER IF EXISTS trg_ticker_alias_registration_insert",
+    "DROP TRIGGER IF EXISTS trg_ticker_alias_registration_update",
+    "DROP TRIGGER IF EXISTS trg_provider_mapping_registration_insert",
+    "DROP TRIGGER IF EXISTS trg_provider_mapping_registration_update",
 )
 
 
@@ -343,8 +343,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    for trigger_name in reversed(_TRIGGER_NAMES):
-        op.execute(sa.text(f"DROP TRIGGER IF EXISTS {trigger_name}"))
+    for statement in reversed(_DROP_TRIGGER_SQL):
+        op.execute(statement)
 
     op.drop_index(
         "ix_provider_mapping_lookup",
