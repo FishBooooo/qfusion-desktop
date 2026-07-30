@@ -35,8 +35,12 @@ from qfusion.storage.raw_store import (
     RawStoreIntegrityError,
 )
 from qfusion.storage.repositories import (
+    DuplicateInstrumentError,
     DuplicateSnapshotError,
+    InstrumentIdentifierConflictError,
+    InstrumentRegistryIntegrityError,
     SnapshotIntegrityError,
+    SqlAlchemyInstrumentRegistryRepository,
     SqlAlchemySnapshotRepository,
 )
 
@@ -50,16 +54,20 @@ __all__ = [
     "ContentAddressedRawStore",
     "DuckDBFactRepository",
     "DuplicateFactError",
+    "DuplicateInstrumentError",
     "DuplicateSnapshotError",
     "FactBatchReceipt",
     "FactIntegrityError",
     "FactWriteQueue",
+    "InstrumentIdentifierConflictError",
+    "InstrumentRegistryIntegrityError",
     "LocalLiteBackupService",
     "RawObject",
     "RawStoreIntegrityError",
     "RestoreReceipt",
     "SessionFactory",
     "SnapshotIntegrityError",
+    "SqlAlchemyInstrumentRegistryRepository",
     "SqlAlchemySnapshotRepository",
     "create_alembic_config",
     "create_session_factory",
