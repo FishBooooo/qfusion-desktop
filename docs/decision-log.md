@@ -18,6 +18,7 @@
 | [0010](adr/0010-offline-audited-backup-restore.md) | Local Lite 使用离线审计归档并只恢复到不存在的新数据根 | Accepted | 2026-07-30 |
 | [0011](adr/0011-provider-capability-entitlement.md) | 供应商能力与账户权限按市场和操作分离，bar 历史范围按周期声明 | Accepted | 2026-07-30 |
 | [0012](adr/0012-point-in-time-instrument-registry.md) | 永久证券 UUID 与 ticker/供应商 ID 使用双时间边界和非重叠有效期映射 | Accepted | 2026-07-30 |
+| [0013](adr/0013-sec-edgar-public-egress.md) | SEC submissions 使用固定公共出站、首次观察可用时间和采集/决策分离 | Accepted | 2026-07-30 |
 
 ## 状态定义
 

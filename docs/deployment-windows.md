@@ -99,8 +99,10 @@ standalone 可执行文件旁的 `qfusion_migrations/`，运行时不依赖源�
 
 ## 6. Windows CI
 
-M0 工作流只使用 GitHub 托管的 `windows-latest` Runner，不使用本机或自托管 Runner。
-工作流执行：
+Windows 工作流只使用 GitHub 托管的 `windows-latest` Runner，不使用本机或自托管
+Runner。草稿 PR 阶段跳过完整 Windows 打包；PR 转为 ready-for-review 或手动触发时才
+执行。相同 PR 的旧 Windows 运行会由 concurrency 门禁取消，未来上传的两个 Artifact
+保留 7 天，以减少重复 Runner 时间和存储占用。工作流执行：
 
 1. 仅检出当前 QFusion commit；
 2. 通过项目脚本安装锁定的项目本地工具链和依赖；

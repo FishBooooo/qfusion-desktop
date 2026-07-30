@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M2-B Instrument Registry 已验收并合并；进入 M2-C SEC EDGAR Adapter
+状态：M2-C1 SEC submissions 采集边界为 PR #15 候选；M2-C 尚未完成
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -218,7 +218,7 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 
 ## M2：首批数据适配器
 
-状态：M2-A 与 M2-B 已通过跨平台 Runner 验证并合并；进入 M2-C。
+状态：M2-A 与 M2-B 已通过跨平台 Runner 验证并合并；M2-C1 正在验证。
 
 实现 SEC、FRED、一个美股行情源、一个港股行情源和必要的 Mock Adapter。逐一验证许可、
 字段、限流、时区、休市和延迟状态。
@@ -326,9 +326,30 @@ M2-B 已完成验收，允许进入 M2-C。
 
 ### M2-C：SEC EDGAR submissions、filings 与 company facts
 
-下一切片将使用 SEC 官方 JSON Fixture 建立无凭证 Adapter、CI 网络隔离解析测试、公平访问
-限速与声明式 User-Agent、Point-in-Time 可用时间和修订边界。实现与真实端点验证必须分离，
-且 CIK 只能作为 SEC 供应商不透明标识通过 Instrument Registry 解析。
+M2-C1 候选范围：
+
+- [x] 无凭证、filings-only 的 SEC capability/access 契约；
+- [x] 永久 `instrument_id` 与 Registry 解析的精确 10 位 CIK 请求边界；
+- [x] submissions `filings.recent` 列式数组的严格、前向兼容解析；
+- [x] acceptance 为 `published_at`、首次收到响应为 `available_at`；
+- [x] 采集与决策查询分离，Repository/Snapshot 保留最终 Point-in-Time 守卫；
+- [x] 固定 SEC 公共 origin、禁代理/重定向、全公网 DNS、限速 5/s、并发 1 和有界重试；
+- [x] 合成 Schema Fixture 与 Mock-only 契约、解析、传输和 Adapter 测试；
+- [x] `httpx` 以同一锁定版本从 dev 依赖提升为运行时依赖；
+- [x] 草稿 PR 只跑 Linux；准备合并时才跑一次 Windows，旧同类运行自动取消，未来
+  Windows Artifact 保留 7 天。
+
+M2-C 后续门禁：
+
+- [ ] 在隔离 Runner 中取得、审计并固定 SEC 官方响应 Fixture，不在常规 CI 调用 live
+  endpoint；
+- [ ] 将原始响应写入 Raw Store，并通过 Repository 增量持久化 filing metadata；
+- [ ] 接入观察池 Scheduler、空响应/分页文件与字段漂移处理；
+- [ ] 只有在 accession 可证明关联 filing availability 后实现 company facts；
+- [ ] 完成最终 Linux/Windows exact-head 门禁与验收记录。
+
+因此本切片即使代码门禁通过，也只完成 M2-C1 边界，不代表 SEC 在线接入或整个 M2-C
+完成。CIK 只能作为 SEC 供应商不透明标识通过 Instrument Registry 解析。
 
 ## M3：因子和特征系统
 
