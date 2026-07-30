@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Annotated, Self
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from pydantic import (
     BaseModel,
@@ -16,7 +17,7 @@ from pydantic import (
     model_validator,
 )
 
-from qfusion.domain import Market
+from qfusion.domain import MARKET_TIMEZONES, Market
 
 NonEmptyText = Annotated[
     str,
@@ -231,10 +232,20 @@ class ProviderCapability(ProviderContract):
 
 
 class MarketDataAccess(ProviderContract):
-    """Observed data quality for one market under one access profile."""
+    """Observed quality and session entitlement for one market."""
 
     market: Market
     data_quality: DataDeliveryQuality
+    allows_premarket: bool = False
+    allows_afterhours: bool = False
+
+    @model_validator(mode="after")
+    def validate_session_entitlement(self) -> Self:
+        if self.data_quality is DataDeliveryQuality.UNAVAILABLE and (
+            self.allows_premarket or self.allows_afterhours
+        ):
+            raise ValueError("unavailable market data cannot allow extended-hours sessions")
+        return self
 
 
 class ProviderAccessProfile(ProviderContract):
@@ -311,7 +322,8 @@ class ProviderBarRequest(ProviderContract):
     start: datetime
     end: datetime
     decision_time: datetime
-    include_extended_hours: bool = False
+    include_premarket: bool = False
+    include_afterhours: bool = False
 
     @field_validator("start", "end", "decision_time")
     @classmethod
@@ -362,6 +374,10 @@ def validate_provider_access(
     for item in access.market_data_quality:
         if item.data_quality is DataDeliveryQuality.REALTIME and not capability.supports_realtime:
             raise ValueError("access profile claims realtime data the adapter does not support")
+        if item.allows_premarket and not capability.supports_premarket:
+            raise ValueError("access profile claims premarket data the adapter does not support")
+        if item.allows_afterhours and not capability.supports_afterhours:
+            raise ValueError("access profile claims after-hours data the adapter does not support")
         if (
             item.data_quality is not DataDeliveryQuality.UNAVAILABLE
             and not (set(access.enabled_operations) & market_data_operations)
@@ -384,15 +400,29 @@ def validate_bar_request(
         raise PermissionError("current provider access does not enable bars")
     if request.market not in capability.supported_markets:
         raise ValueError("provider does not support the requested market")
-    market_quality = {
-        item.market: item.data_quality for item in access.market_data_quality
-    }.get(request.market, DataDeliveryQuality.UNAVAILABLE)
-    if market_quality is DataDeliveryQuality.UNAVAILABLE:
+    market_access = {item.market: item for item in access.market_data_quality}.get(request.market)
+    if (
+        market_access is None
+        or market_access.data_quality is DataDeliveryQuality.UNAVAILABLE
+    ):
         raise PermissionError("current provider access has no data for the requested market")
     if request.interval not in capability.supported_intervals:
         raise ValueError("provider does not support the requested interval")
-    if request.include_extended_hours and not (
-        capability.supports_premarket or capability.supports_afterhours
-    ):
-        raise ValueError("provider does not support extended-hours bars")
+
+    if capability.historical_start is not None:
+        market_timezone = ZoneInfo(MARKET_TIMEZONES[request.market])
+        request_start_date = request.start.astimezone(market_timezone).date()
+        if request_start_date < capability.historical_start:
+            raise ValueError("request starts before provider historical_start")
+
+    if request.include_premarket:
+        if not capability.supports_premarket:
+            raise ValueError("provider does not support premarket bars")
+        if not market_access.allows_premarket:
+            raise PermissionError("current provider access does not allow premarket bars")
+    if request.include_afterhours:
+        if not capability.supports_afterhours:
+            raise ValueError("provider does not support after-hours bars")
+        if not market_access.allows_afterhours:
+            raise PermissionError("current provider access does not allow after-hours bars")
     return request
