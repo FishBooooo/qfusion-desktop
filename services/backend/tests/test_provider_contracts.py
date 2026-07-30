@@ -22,9 +22,13 @@ from qfusion.providers import (
     ProviderBarRequest,
     ProviderCapability,
     ProviderOperation,
+    ProviderUsage,
+    ProviderUsagePolicy,
+    ProviderUsageStatus,
     RateLimitPolicy,
     validate_bar_request,
     validate_provider_access,
+    validate_provider_usage,
 )
 
 INSTRUMENT_ID = UUID("10000000-0000-4000-8000-000000000001")
@@ -35,6 +39,26 @@ DEFAULT_DAILY_HISTORY = (
         historical_start=date(2020, 1, 1),
     ),
 )
+
+
+def make_usage_policy(**overrides: object) -> ProviderUsagePolicy:
+    data: dict[str, object] = {
+        "terms_url": "https://example.com/provider-terms",
+        "terms_checked_at": date(2026, 7, 30),
+        "personal_research": ProviderUsageStatus.ALLOWED,
+        "local_cache": ProviderUsageStatus.ALLOWED,
+        "persistent_storage": ProviderUsageStatus.ALLOWED,
+        "private_display": ProviderUsageStatus.ALLOWED,
+        "public_display": ProviderUsageStatus.UNVERIFIED,
+        "commercial_use": ProviderUsageStatus.PROHIBITED,
+        "redistribution": ProviderUsageStatus.UNVERIFIED,
+        "model_processing": ProviderUsageStatus.ALLOWED,
+        "attribution_required": True,
+        "attribution_text": "Source: test provider.",
+        "required_notices": ("Preserve source provenance.",),
+    }
+    data.update(overrides)
+    return ProviderUsagePolicy.model_validate(data)
 
 
 def make_capability(**overrides: object) -> ProviderCapability:
@@ -65,6 +89,7 @@ def make_capability(**overrides: object) -> ProviderCapability:
         "venue_scope": "US",
         "quality_level": "test",
         "license_scope": "test-only",
+        "usage_policy": make_usage_policy(),
         "operations": (ProviderOperation.BARS,),
     }
     data.update(overrides)
@@ -106,6 +131,84 @@ def make_request(**overrides: object) -> ProviderBarRequest:
     }
     data.update(overrides)
     return ProviderBarRequest.model_validate(data)
+
+
+def test_usage_policy_canonicalizes_notices_and_maps_every_use() -> None:
+    policy = make_usage_policy(
+        required_notices=("z-notice", "a-notice"),
+    )
+
+    assert policy.required_notices == ("a-notice", "z-notice")
+    assert policy.status_for(ProviderUsage.PERSONAL_RESEARCH) is (
+        ProviderUsageStatus.ALLOWED
+    )
+    assert policy.status_for(ProviderUsage.LOCAL_CACHE) is ProviderUsageStatus.ALLOWED
+    assert policy.status_for(ProviderUsage.PERSISTENT_STORAGE) is (
+        ProviderUsageStatus.ALLOWED
+    )
+    assert policy.status_for(ProviderUsage.PRIVATE_DISPLAY) is (
+        ProviderUsageStatus.ALLOWED
+    )
+    assert policy.status_for(ProviderUsage.PUBLIC_DISPLAY) is (
+        ProviderUsageStatus.UNVERIFIED
+    )
+    assert policy.status_for(ProviderUsage.COMMERCIAL_USE) is (
+        ProviderUsageStatus.PROHIBITED
+    )
+    assert policy.status_for(ProviderUsage.REDISTRIBUTION) is (
+        ProviderUsageStatus.UNVERIFIED
+    )
+    assert policy.status_for(ProviderUsage.MODEL_PROCESSING) is (
+        ProviderUsageStatus.ALLOWED
+    )
+
+
+def test_usage_policy_rejects_unsafe_urls_attribution_and_duplicate_notices() -> None:
+    with raises(ValidationError, match="public HTTPS URL"):
+        make_usage_policy(terms_url="http://example.com/terms")
+    with raises(ValidationError, match="public HTTPS URL"):
+        make_usage_policy(terms_url="https://user@example.com/terms")
+    with raises(ValidationError, match="attribution_text"):
+        make_usage_policy(attribution_required=True, attribution_text=None)
+    with raises(ValidationError, match="attribution_text"):
+        make_usage_policy(
+            attribution_required=False,
+            attribution_text="Unexpected attribution.",
+        )
+    with raises(ValidationError, match="required_notices must be unique"):
+        make_usage_policy(required_notices=("same", "same"))
+
+
+def test_usage_gate_allows_only_explicitly_allowed_uses() -> None:
+    capability = make_capability()
+
+    assert validate_provider_usage(
+        capability,
+        ProviderUsage.PERSISTENT_STORAGE,
+    ) is capability.usage_policy
+    with raises(
+        PermissionError,
+        match=r"BLOCKED_BY_PROVIDER_LICENSE: .* commercial_use is PROHIBITED",
+    ):
+        validate_provider_usage(capability, ProviderUsage.COMMERCIAL_USE)
+    with raises(
+        PermissionError,
+        match=r"BLOCKED_BY_PROVIDER_LICENSE: .* redistribution is UNVERIFIED",
+    ):
+        validate_provider_usage(capability, ProviderUsage.REDISTRIBUTION)
+
+
+def test_capability_requires_usage_policy_schema_v2() -> None:
+    capability = make_capability()
+
+    assert capability.schema_version == "2.0.0"
+    with raises(ValidationError, match="string_pattern_mismatch"):
+        make_capability(schema_version="1.0.0")
+
+    values = capability.model_dump()
+    del values["usage_policy"]
+    with raises(ValidationError, match="usage_policy"):
+        ProviderCapability.model_validate(values)
 
 
 def test_capability_canonicalizes_collections_and_rate_limits() -> None:

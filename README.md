@@ -1,8 +1,8 @@
 # QFusion Desktop
 
-QFusion Desktop 是一个本地优先的美股与港股科技板块“3+1”多视角交易决策平台。项目当前处于 **M1 本地存储与数据契约阶段**：M0 桌面基线与 M1-A Point-in-Time 契约已经验收，正在落地可迁移的本地存储。
+QFusion Desktop 是一个本地优先的美股与港股科技板块“3+1”多视角交易决策平台。M0 与 M1 已验收，项目当前处于 **M2 数据适配器阶段**：已完成 Synthetic Mock、Instrument Registry、SEC 固定出站边界与手动采集门禁，正在验证结构化供应商使用许可。
 
-> 当前版本不连接真实行情、不运行交易模型、不提供投资建议，也不存在实盘提交路径。M1-B 仅持久化合成测试使用的分析快照元数据。
+> 当前版本不执行真实供应商请求、不运行交易模型、不提供投资建议，也不存在实盘提交路径。FRED/ALFRED 因当前条款与本地持久化及模型用途冲突而保持 `BLOCKED_BY_PROVIDER_LICENSE`。
 
 ## 架构不变量
 
@@ -11,6 +11,7 @@ QFusion Desktop 是一个本地优先的美股与港股科技板块“3+1”多�
 - 所有融合结果必须经过独立全局风险引擎。
 - ticker 不是永久证券主键。
 - 数值计算、时间有效性、成本、仓位和风险许可不交给 LLM。
+- 供应商能力、账户权限与使用许可分别验证；禁止或未验证的用途在副作用前拒绝。
 
 完整约束见 [PROJECT_TASKBOOK.md](PROJECT_TASKBOOK.md)，架构基线见 [docs/architecture.md](docs/architecture.md)。
 

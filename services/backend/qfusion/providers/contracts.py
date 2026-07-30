@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from enum import StrEnum
 from typing import Annotated, Self
+from urllib.parse import urlsplit
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -22,6 +23,14 @@ from qfusion.domain import MARKET_TIMEZONES, Market
 NonEmptyText = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1, max_length=128),
+]
+UsageNoticeText = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=1024),
+]
+UsageTermsUrl = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=8, max_length=2048),
 ]
 
 
@@ -103,6 +112,27 @@ class ProviderAccessStatus(StrEnum):
     UNVERIFIED = "UNVERIFIED"
 
 
+class ProviderUsage(StrEnum):
+    """Data uses that require an independently verified provider permission."""
+
+    PERSONAL_RESEARCH = "personal_research"
+    LOCAL_CACHE = "local_cache"
+    PERSISTENT_STORAGE = "persistent_storage"
+    PRIVATE_DISPLAY = "private_display"
+    PUBLIC_DISPLAY = "public_display"
+    COMMERCIAL_USE = "commercial_use"
+    REDISTRIBUTION = "redistribution"
+    MODEL_PROCESSING = "model_processing"
+
+
+class ProviderUsageStatus(StrEnum):
+    """Conservative permission state for one provider data use."""
+
+    ALLOWED = "ALLOWED"
+    PROHIBITED = "PROHIBITED"
+    UNVERIFIED = "UNVERIFIED"
+
+
 def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("provider timestamps must be timezone-aware")
@@ -117,6 +147,67 @@ class ProviderContract(BaseModel):
         frozen=True,
         str_strip_whitespace=True,
     )
+
+
+class ProviderUsagePolicy(ProviderContract):
+    """Versioned, machine-enforced provider terms assessment."""
+
+    schema_version: Annotated[str, StringConstraints(pattern=r"^1\.0\.0$")] = "1.0.0"
+    terms_url: UsageTermsUrl
+    terms_checked_at: date
+    personal_research: ProviderUsageStatus
+    local_cache: ProviderUsageStatus
+    persistent_storage: ProviderUsageStatus
+    private_display: ProviderUsageStatus
+    public_display: ProviderUsageStatus
+    commercial_use: ProviderUsageStatus
+    redistribution: ProviderUsageStatus
+    model_processing: ProviderUsageStatus
+    attribution_required: bool
+    attribution_text: UsageNoticeText | None = None
+    required_notices: tuple[UsageNoticeText, ...] = ()
+
+    @field_validator("terms_url")
+    @classmethod
+    def validate_terms_url(cls, value: str) -> str:
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+        ):
+            raise ValueError("terms_url must be a public HTTPS URL without userinfo")
+        return value
+
+    @field_validator("required_notices")
+    @classmethod
+    def normalize_required_notices(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        if len(values) != len(set(values)):
+            raise ValueError("required_notices must be unique")
+        return tuple(sorted(values))
+
+    @model_validator(mode="after")
+    def validate_attribution(self) -> Self:
+        if self.attribution_required != (self.attribution_text is not None):
+            raise ValueError(
+                "attribution_text must be present exactly when attribution is required"
+            )
+        return self
+
+    def status_for(self, usage: ProviderUsage) -> ProviderUsageStatus:
+        """Return the assessed permission for one exact use."""
+
+        return {
+            ProviderUsage.PERSONAL_RESEARCH: self.personal_research,
+            ProviderUsage.LOCAL_CACHE: self.local_cache,
+            ProviderUsage.PERSISTENT_STORAGE: self.persistent_storage,
+            ProviderUsage.PRIVATE_DISPLAY: self.private_display,
+            ProviderUsage.PUBLIC_DISPLAY: self.public_display,
+            ProviderUsage.COMMERCIAL_USE: self.commercial_use,
+            ProviderUsage.REDISTRIBUTION: self.redistribution,
+            ProviderUsage.MODEL_PROCESSING: self.model_processing,
+        }[usage]
 
 
 class RateLimitPolicy(ProviderContract):
@@ -201,7 +292,7 @@ class MarketDataCapability(ProviderContract):
 class ProviderCapability(ProviderContract):
     """Versioned technical capability declared by an adapter implementation."""
 
-    schema_version: Annotated[str, StringConstraints(pattern=r"^1\.0\.0$")] = "1.0.0"
+    schema_version: Annotated[str, StringConstraints(pattern=r"^2\.0\.0$")] = "2.0.0"
     provider_name: NonEmptyText
     provider_version: NonEmptyText
     supported_markets: tuple[Market, ...]
@@ -216,6 +307,7 @@ class ProviderCapability(ProviderContract):
     venue_scope: NonEmptyText
     quality_level: NonEmptyText
     license_scope: NonEmptyText
+    usage_policy: ProviderUsagePolicy
     operations: tuple[ProviderOperation, ...]
 
     @field_validator("supported_markets")
@@ -458,6 +550,21 @@ class ProviderBarRequest(ProviderContract):
         """Return the canonical fact type expected from this request."""
 
         return "daily_bar" if self.interval is DataInterval.DAY_1 else "minute_bar"
+
+
+def validate_provider_usage(
+    capability: ProviderCapability,
+    usage: ProviderUsage,
+) -> ProviderUsagePolicy:
+    """Reject any use not explicitly allowed by the current terms assessment."""
+
+    status = capability.usage_policy.status_for(usage)
+    if status is not ProviderUsageStatus.ALLOWED:
+        raise PermissionError(
+            "BLOCKED_BY_PROVIDER_LICENSE: "
+            f"{capability.provider_name} {usage.value} is {status.value}"
+        )
+    return capability.usage_policy
 
 
 def validate_provider_access(

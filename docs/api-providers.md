@@ -1,6 +1,6 @@
 # 数据供应商登记
 
-状态：M2-C2a 手动采集门禁已验收；尚未执行真实供应商请求。
+状态：M2-D0 结构化供应商使用许可门禁已实现，等待跨平台验证；未执行 FRED 请求。
 最后更新：2026-07-30
 
 ## 1. 强制登记字段
@@ -13,7 +13,7 @@
 - 按“市场 + bars + 周期”记录历史起点；每个受支持周期必须且只能有一个窗口，
   缺失不能视为无限历史，并声明 venue scope 和质量等级；
 - rate limit、并发、重试与空响应行为；
-- 个人研究、缓存、长期存储、展示、商业使用和再分发许可；
+- 个人研究、缓存、长期存储、私有/公开展示、商业使用、再分发和模型处理许可；
 - 字段来源、时区、`available_at`、修订和公司行为语义。
 
 供应商字段或权限未由官方文档和契约测试验证前，一律标记“待验证”，不能写入生产
@@ -45,6 +45,28 @@ UNAVAILABLE
 
 完整决策见 [ADR-0011](adr/0011-provider-capability-entitlement.md)。
 
+### 2.1 使用许可是第三份独立事实
+
+`license_scope` 仍随每条 `DataSourceRecord` 保存，但不能授权缓存、落库、展示或模型使用。
+`ProviderCapability` Schema `2.0.0` 强制包含 `ProviderUsagePolicy`，并逐项记录：
+
+```text
+personal_research
+local_cache
+persistent_storage
+private_display
+public_display
+commercial_use
+redistribution
+model_processing
+```
+
+每项只能是 `ALLOWED`、`PROHIBITED` 或 `UNVERIFIED`。只有 `ALLOWED` 可通过
+`validate_provider_usage`；其余状态必须在副作用前输出
+`BLOCKED_BY_PROVIDER_LICENSE` 并拒绝。`model_processing` 同时覆盖规则、统计、机器学习
+和 LLM，不能从“个人研究可用”推断模型可用。完整决策见
+[ADR-0015](adr/0015-machine-enforced-provider-usage-policy.md)。
+
 ## 3. M2-A 已实现：Synthetic Mock
 
 | 字段 | 值 |
@@ -58,6 +80,7 @@ UNAVAILABLE
 | 数据质量 | `SYNTHETIC_MOCK` |
 | Venue scope | `synthetic-us-hk` |
 | License scope | `test-only` |
+| Usage policy | 项目内研究/缓存/持久化/展示/模型处理允许；商业使用和再分发禁止 |
 | 网络/凭证 | 不使用 |
 | 真实金融数据 | 不包含 |
 
@@ -98,7 +121,7 @@ instrument_id + provider_name + market -> provider_instrument_id
 | 切片 | 供应商 | 预期用途 | 当前状态 |
 | --- | --- | --- | --- |
 | M2-C | SEC EDGAR `data.sec.gov` | 美股 submissions、filings、company facts | C2a 手动采集门禁已验收；官方响应、持久化与 company facts 待完成 |
-| M2-D | FRED/ALFRED | 美国宏观与 vintage/realtime period | 官方契约研究完成；需要用户自带 API key |
+| M2-D | FRED/ALFRED | 美国宏观与 vintage/realtime period | `BLOCKED_BY_PROVIDER_LICENSE`；不创建 Adapter、不配置 key、不调用 |
 | M2-E | Tiingo | 美股 EOD/历史行情候选 | 官方契约研究完成；需要用户自带 token，许可待账户验证 |
 | M2-F | Longbridge OpenAPI | 港股行情候选 | 官方契约研究完成；实际账户行情权限必须运行时验证 |
 
@@ -146,12 +169,24 @@ QFusion 首次实际收到响应的时间记为 `available_at`，并返回事实
 
 该验收没有执行 live request，也不代表官方 Fixture 已取得或审查。
 
+### 5.3 M2-D0 结构化使用许可门禁
+
+M2-D0 将供应商用途从自由文本标签升级为可执行契约。SEC filing 采集在发起 Transport
+请求前校验 `persistent_storage`；测试会把该权限改为 `PROHIBITED` 并确认请求在网络前
+失败。Synthetic Mock 同样声明精确用途，且必须继续显示合成数据提示。
+
+2026-07-30 的官方条款复核确认，当前 FRED 条款禁止存储、缓存或归档 FRED 内容，也禁止
+把 FRED 内容用于软件、机器学习或 AI 系统相关开发/训练。该边界与 QFusion 的 Raw Store、
+离线缓存、DuckDB/Parquet 和模型输入要求直接冲突，因此 M2-D 不会通过“只加 API key”
+继续。BLS、BEA、Treasury 等原始官方来源只是候选，必须分别完成许可、修订、
+`available_at` 和 vintage 语义审查后再选定。
+
 官方依据：
 
 - SEC：[EDGAR API](https://www.sec.gov/search-filings/edgar-application-programming-interfaces) 与
   [Developer Resources](https://www.sec.gov/about/developer-resources)；
-- FRED：[API Overview](https://fred.stlouisfed.org/docs/api/fred/overview.html) 与
-  [Series Observations](https://fred.stlouisfed.org/docs/api/fred/series_observations.html)；
+- FRED：[Services Terms of Use](https://fred.stlouisfed.org/legal/terms/) 与
+  [API Terms of Use](https://fred.stlouisfed.org/docs/api/terms_of_use.html)；
 - Tiingo：[General Documentation](https://www.tiingo.com/documentation/general) 与
   [End-of-Day API](https://www.tiingo.com/documentation/end-of-day)；
 - Longbridge：[OpenAPI Documentation](https://open.longbridge.com/docs) 与
@@ -165,8 +200,9 @@ QFusion 首次实际收到响应的时间记为 `available_at`，并返回事实
 1. M2-B 的 Instrument Registry 已完成；真实 Adapter 只能接收其解析出的永久 UUID 与
    供应商不透明标识，ticker 不能作为永久主键。
 2. M2-C1 SEC submissions 采集边界与 M2-C2a 手动采集门禁已完成；实际官方响应、
-   Fixture 审查、持久化与 company facts 仍是 M2-C 后续门禁。M2-D 至 M2-F 再逐个实现，
-   且不共享供应商 SDK 类型。
-3. 每个 Adapter 必须覆盖限流、超时、重试、空响应、字段变化、时区、休市、修订和延迟
+   Fixture 审查、持久化与 company facts 仍是 M2-C 后续门禁。
+3. M2-D 的 FRED/ALFRED 方向因当前条款保持 `BLOCKED_BY_PROVIDER_LICENSE`；不得创建
+   会缓存、持久化或进入模型的 FRED Adapter。宏观替代来源必须先单独通过用途许可门禁。
+4. 每个 Adapter 必须覆盖限流、超时、重试、空响应、字段变化、时区、休市、修订和延迟
    标记测试。
-4. M2-G 才接入观察池增量同步和 GUI 数据状态；在此之前不声明 M2 完成。
+5. M2-G 才接入观察池增量同步和 GUI 数据状态；在此之前不声明 M2 完成。

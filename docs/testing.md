@@ -244,6 +244,21 @@ Ruff、mypy 和 SEC pytest 通过后执行一次固定 origin 请求。本验收
 没有调度该工作流、没有执行 live request，因此不能报告官方响应 Fixture 或真实 SEC
 可达性已验证。
 
+## M2-D0 供应商使用许可测试门禁
+
+无网络单元测试必须覆盖：
+
+- `ProviderCapability` 只接受带完整用途策略的 Schema `2.0.0`；
+- 条款 URL 只接受无用户信息的公开 HTTPS，署名文本与开关保持一致；
+- 必需提示去重并确定性排序；
+- 八种用途都能映射到精确状态；
+- `PROHIBITED` 和 `UNVERIFIED` 都以 `BLOCKED_BY_PROVIDER_LICENSE` fail closed；
+- SEC 持久化用途在 Transport 前校验，拒绝时请求计数保持为零；
+- 既有 Mock/SEC Parser、存储、快照、前端、standalone 和 NSIS 回归不变。
+
+本切片不得配置 FRED key、调用 FRED/ALFRED、创建其响应 Fixture 或把相关内容写入
+Raw Store。FRED 许可冲突是预期门禁结果，不得通过放宽断言来使测试通过。
+
 ## 后续金融测试门禁
 
 涉及行情、财务、新闻、预测或回测时，必须增加时区、交易日、截止时间、盘前盘后、复权、

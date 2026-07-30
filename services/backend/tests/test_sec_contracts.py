@@ -9,7 +9,13 @@ from pydantic import ValidationError
 from pytest import raises
 
 from qfusion.domain import Market
-from qfusion.providers import ProviderAdapter, ProviderOperation
+from qfusion.providers import (
+    ProviderAdapter,
+    ProviderOperation,
+    ProviderUsage,
+    ProviderUsageStatus,
+    validate_provider_usage,
+)
 from qfusion.providers.sec import (
     SecEdgarProvider,
     SecFilingProvider,
@@ -102,3 +108,16 @@ def test_provider_declares_public_no_auth_filings_only() -> None:
     assert provider.access_profile.market_data_quality == ()
     assert provider.capability.rate_limit[0].max_requests == 5
     assert provider.capability.rate_limit[0].max_concurrent == 1
+    assert provider.capability.schema_version == "2.0.0"
+    assert provider.capability.usage_policy.persistent_storage is (
+        ProviderUsageStatus.ALLOWED
+    )
+    assert validate_provider_usage(
+        provider.capability,
+        ProviderUsage.PERSISTENT_STORAGE,
+    ) is provider.capability.usage_policy
+    with raises(PermissionError, match="BLOCKED_BY_PROVIDER_LICENSE"):
+        validate_provider_usage(
+            provider.capability,
+            ProviderUsage.PUBLIC_DISPLAY,
+        )

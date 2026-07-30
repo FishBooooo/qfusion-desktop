@@ -1,6 +1,6 @@
 # QFusion Desktop 架构基线
 
-状态：M2-C1 SEC submissions 采集边界已验收
+状态：M2-D0 供应商使用许可门禁已实现，等待跨平台验收
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -27,6 +27,8 @@ MVP 只支持研究、模拟交易、订单预览和人工确认，不提供自�
 6. 证券永久标识使用内部 `instrument_id`，ticker 只作为带有效期的别名。
 7. 所有金融事实保留来源、时间、版本、修订与质量元数据。
 8. 回测和历史决策只能使用 `available_at <= decision_time` 的数据。
+9. 供应商技术能力、账户权限和数据用途许可必须分别验证；禁止或未验证的用途必须在网络、
+   缓存、持久化、展示或模型副作用前拒绝。
 
 ## 3. 运行时拓扑
 
@@ -112,6 +114,12 @@ M2-A 已在 Provider 层新增 `ProviderCapability`、`ProviderAccessProfile`、
 `DataSourceRecord`。Synthetic Mock 不访问网络或凭证，完整决策见
 [ADR-0011](adr/0011-provider-capability-entitlement.md)。
 
+M2-D0 将 `ProviderCapability` Schema 升级为 `2.0.0`，并要求每个 Adapter 同时声明
+`ProviderUsagePolicy`。个人研究、项目缓存、长期持久化、私有/公开展示、商业使用、
+再分发和模型处理分别使用 `ALLOWED`、`PROHIBITED` 或 `UNVERIFIED`；只有明确允许的用途
+可以通过 `validate_provider_usage`。`license_scope` 仍随事实保存，但不再承担授权功能。
+完整决策见 [ADR-0015](adr/0015-machine-enforced-provider-usage-policy.md)。
+
 M2-B 候选把内部永久 UUID、ticker 历史和供应商不透明 ID 映射分离。所有外部标识映射使用
 半开有效区间、独立 `available_at` 和显式 `effective_at <= decision_time` 查询；SQLite
 物理过滤后，Repository 再次执行 Domain Point-in-Time 守卫。Provider 只能消费已解析的
@@ -142,6 +150,22 @@ M2-C2a 在 Transport 边界保留有界的精确响应字节及其解码对象�
 响应只能通过手动 GitHub Runner 门禁生成短期、无秘密 Artifact；常规 CI 不联网，采集
 结果不自动进入仓库或 Raw Store。见
 [ADR-0014](adr/0014-manual-sec-official-capture.md)。
+
+### M2-D0 供应商使用许可门禁
+
+```text
+Provider technical capability
+        + account access
+        + exact intended use
+        -> validate_provider_usage
+        -> ALLOWED only
+        -> network/cache/store/display/model side effect
+```
+
+SEC filing 采集的持久化许可在 Transport 调用前校验；拒绝测试证明网络不会被触发。
+FRED/ALFRED 当前条款禁止其内容的存储、缓存、归档和 AI/ML 相关系统用途，与 QFusion 的
+本地优先持久化及模型路径冲突。因此不创建 FRED Adapter、不配置 key、不调用端点；后续
+宏观候选来源必须先通过同一用途许可门禁。
 
 ## 5. 模型数据流
 

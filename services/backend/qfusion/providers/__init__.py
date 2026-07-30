@@ -12,9 +12,13 @@ from qfusion.providers.contracts import (
     ProviderBarRequest,
     ProviderCapability,
     ProviderOperation,
+    ProviderUsage,
+    ProviderUsagePolicy,
+    ProviderUsageStatus,
     RateLimitPolicy,
     validate_bar_request,
     validate_provider_access,
+    validate_provider_usage,
 )
 from qfusion.providers.interfaces import MarketDataProvider, ProviderAdapter
 from qfusion.providers.mock import SyntheticMockMarketDataProvider
@@ -53,6 +57,9 @@ __all__ = [
     "ProviderBarRequest",
     "ProviderCapability",
     "ProviderOperation",
+    "ProviderUsage",
+    "ProviderUsagePolicy",
+    "ProviderUsageStatus",
     "RateLimitPolicy",
     "SecCik",
     "SecEdgarProvider",
@@ -70,5 +77,6 @@ __all__ = [
     "require_public_addresses",
     "validate_bar_request",
     "validate_provider_access",
+    "validate_provider_usage",
     "validate_sec_filing_request",
 ]

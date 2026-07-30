@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Final
 
 from qfusion.domain import DataSourceRecord, Market
@@ -13,8 +13,12 @@ from qfusion.providers.contracts import (
     ProviderAccessStatus,
     ProviderCapability,
     ProviderOperation,
+    ProviderUsage,
+    ProviderUsagePolicy,
+    ProviderUsageStatus,
     RateLimitPolicy,
     validate_provider_access,
+    validate_provider_usage,
 )
 from qfusion.providers.sec.contracts import (
     SecFilingRequest,
@@ -50,6 +54,23 @@ _SEC_CAPABILITY: Final = ProviderCapability(
     venue_scope="US-SEC-EDGAR",
     quality_level="official-public-filings",
     license_scope="public-government-content",
+    usage_policy=ProviderUsagePolicy(
+        terms_url="https://www.sec.gov/about/webmaster-frequently-asked-questions",
+        terms_checked_at=date(2026, 7, 30),
+        personal_research=ProviderUsageStatus.ALLOWED,
+        local_cache=ProviderUsageStatus.ALLOWED,
+        persistent_storage=ProviderUsageStatus.ALLOWED,
+        private_display=ProviderUsageStatus.ALLOWED,
+        public_display=ProviderUsageStatus.UNVERIFIED,
+        commercial_use=ProviderUsageStatus.UNVERIFIED,
+        redistribution=ProviderUsageStatus.UNVERIFIED,
+        model_processing=ProviderUsageStatus.UNVERIFIED,
+        attribution_required=True,
+        attribution_text="Source: U.S. Securities and Exchange Commission EDGAR.",
+        required_notices=(
+            "Do not imply SEC endorsement; preserve filing source and provenance.",
+        ),
+    ),
     operations=(ProviderOperation.FILINGS,),
 )
 _SEC_ACCESS: Final = ProviderAccessProfile(
@@ -89,6 +110,10 @@ class SecEdgarProvider:
         """Return newly observed filing facts for persistence before snapshot queries."""
 
         validate_sec_filing_request(self.capability, self.access_profile, request)
+        validate_provider_usage(
+            self.capability,
+            ProviderUsage.PERSISTENT_STORAGE,
+        )
         response = await self._transport.get_submissions(request.cik)
         return parse_sec_submissions(
             response.payload,
