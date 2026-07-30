@@ -9,7 +9,7 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
-from sqlalchemy import inspect, select, text, update
+from sqlalchemy import inspect, text, update
 from sqlalchemy.engine import Engine
 
 from qfusion.domain import (
@@ -40,7 +40,7 @@ from qfusion.storage import (
     create_sqlite_engine,
     upgrade_database,
 )
-from qfusion.storage.models import InstrumentRow, TickerAliasRow
+from qfusion.storage.models import Base, InstrumentRow, TickerAliasRow
 
 INSTRUMENT_ID = UUID("61000000-0000-4000-8000-000000000001")
 SECOND_INSTRUMENT_ID = UUID("61000000-0000-4000-8000-000000000002")
@@ -393,6 +393,14 @@ def test_registry_detects_persisted_domain_corruption(
                 )
             )
         )
+
+    with migrated_engine.begin() as connection:
+        connection.execute(
+            update(InstrumentRow)
+            .where(InstrumentRow.instrument_id == INSTRUMENT_ID)
+            .values(schema_version="1.0.0")
+        )
+
     with pytest.raises(InstrumentRegistryIntegrityError, match="invalid persisted ticker"):
         asyncio.run(
             registry.resolve_ticker(
@@ -415,7 +423,11 @@ def test_migration_columns_match_registry_orm_metadata(migrated_engine: Engine) 
     )
     for table_name in table_names:
         assert table_name in inspector.get_table_names()
-        assert inspector.get_columns(table_name)
+        migrated_columns = {
+            column["name"] for column in inspector.get_columns(table_name)
+        }
+        mapped_columns = set(Base.metadata.tables[table_name].columns.keys())
+        assert migrated_columns == mapped_columns
 
 
 def test_registry_mapping_drives_network_free_synthetic_provider(
@@ -487,6 +499,3 @@ def test_registry_tables_are_not_used_as_ticker_primary_keys(
     assert ticker_pk == ["alias_id"]
     assert "ticker" not in instrument_pk
     assert "ticker" not in ticker_pk
-
-    with migrated_engine.connect() as connection:
-        assert connection.scalar(select(text("1"))) == 1
