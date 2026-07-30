@@ -1,7 +1,7 @@
 # 数据供应商登记
 
-状态：M2-D0 结构化供应商使用许可门禁已实现，等待跨平台验证；未执行 FRED 请求。
-最后更新：2026-07-30
+状态：M2-D0 结构化供应商使用许可门禁已验收；FRED/ALFRED 保持许可阻断。
+最后更新：2026-07-31
 
 ## 1. 强制登记字段
 
@@ -206,3 +206,14 @@ M2-D0 将供应商用途从自由文本标签升级为可执行契约。SEC fili
 4. 每个 Adapter 必须覆盖限流、超时、重试、空响应、字段变化、时区、休市、修订和延迟
    标记测试。
 5. M2-G 才接入观察池增量同步和 GUI 数据状态；在此之前不声明 M2 完成。
+
+## M2-D0 跨平台验收
+
+许可门禁的精确测试提交 `0ee020548c6e8fc25dffea7110ab347d743c9617` 已通过 Linux
+[CI run 30555808959](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30555808959)
+和 Windows
+[run 30556148216](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30556148216)，
+并通过 [PR #19](https://github.com/FishBooooo/qfusion-desktop/pull/19) 进入 `main`。
+完整测试、Artifact、隔离证明与未验证用途见
+[M2-D0 验收记录](m2d0-acceptance.md)。本验收没有执行 FRED/ALFRED、live SEC 或其他
+真实供应商请求。
