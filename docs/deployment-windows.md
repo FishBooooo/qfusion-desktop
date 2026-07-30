@@ -1,6 +1,6 @@
 # Windows 部署基线
 
-状态：M1-B GitHub 托管 Windows standalone、迁移资产与 NSIS 验证已通过
+状态：M1 已验收；M2-A standalone 时区资产候选等待 Windows Runner 验证
 最后更新：2026-07-30
 
 ## 1. 交付目标
@@ -52,8 +52,14 @@ Windows Nuitka 构建使用项目本地缓存，并启用内置 `pefile` 依赖�
 排除在当前 Runner 上导致编译内存问题且 QFusion 不使用的
 `sqlalchemy.dialects.oracle.dictionary` 模块；SQLite `pysqlite` 驱动必须显式包含。
 
-构建成功后生成 `dist/backend/build-manifest.json` schema v2，记录相对可执行文件路径、
-SHA-256、迁移目录、唯一 Alembic head、完整文件清单和逐文件 SHA-256。迁移资产复制到
+Windows 通常不提供 Python 可直接读取的系统 IANA 数据库。后端因此通过
+`pyproject.toml` 与 `uv.lock` 锁定项目本地 `tzdata` 2026.3；Nuitka 命令显式包含
+`tzdata` 包及数据，不读取或修改宿主机时区配置。构建后必须找到并校验
+`tzdata/zoneinfo/America/New_York` 与 `tzdata/zoneinfo/Asia/Hong_Kong`。
+
+构建成功后生成 `dist/backend/build-manifest.json` schema v3，记录相对可执行文件路径、
+SHA-256、迁移目录、唯一 Alembic head、完整文件清单、逐文件 SHA-256，以及两个必需
+IANA 时区资产的相对路径和摘要。迁移资产复制到
 standalone 可执行文件旁的 `qfusion_migrations/`，运行时不依赖源码目录。M1-B 的后端
 与桌面安装包仍是两个独立 Artifact；将 Sidecar 复制为带 Tauri 目标三元组的
 `externalBin` 并由桌面端启动属于 M8。
@@ -62,17 +68,19 @@ standalone 可执行文件旁的 `qfusion_migrations/`，运行时不依赖源�
 
 `scripts/smoke_backend_standalone.py` 只验证本次构建生成的 Windows 可执行文件：
 
-1. 解析 schema v2 构建清单，拒绝绝对路径、父路径穿越和越出
+1. 解析 schema v3 构建清单，拒绝绝对路径、父路径穿越和越出
    `dist/backend` 的路径；
 2. 重新计算 standalone EXE SHA-256 并与清单比较；
 3. 验证迁移目录不是符号链接、位于可执行文件旁且文件清单完全一致；
 4. 逐个验证迁移资产 SHA-256，并要求清单只声明一个 Alembic head；
-5. 执行 compiled CLI 的 `--verify-migration-assets`，接受 Windows CRLF 或 POSIX LF，
+5. 验证 `tzdata` 包名、两个必需 zoneinfo 相对路径及 SHA-256，拒绝缺失、重复、
+   意外路径、符号链接和越界文件；
+6. 执行 compiled CLI 的 `--verify-migration-assets`，接受 Windows CRLF 或 POSIX LF，
    但拒绝额外输出行；
-6. 由操作系统分配动态 `127.0.0.1` 端口；
-7. 记录 PID、启动时间、工作目录、端口和用途；
-8. 禁止 HTTP 重定向，只请求精确 `/api/v1/health` 并验证健康响应；
-9. 停止前再次核验所持进程对象和身份。
+7. 由操作系统分配动态 `127.0.0.1` 端口；
+8. 记录 PID、启动时间、工作目录、端口和用途；
+9. 禁止 HTTP 重定向，只请求精确 `/api/v1/health` 并验证健康响应；
+10. 停止前再次核验所持进程对象和身份。
 
 日志与运行记录写入 Runner 当前仓库内的 `.tmp/`，不连接本机、局域网、科研服务或其他
 进程。
