@@ -1,6 +1,6 @@
 # QFusion Desktop 架构基线
 
-状态：M1 本地存储与数据契约已正式验收
+状态：M1 已验收；M2-A 供应商能力与账户权限边界候选
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -101,6 +101,17 @@ M1-D 已实现 `SnapshotBuilder`。它只接收 Repository Protocol、显式 fac
 目标 UUID 和决策时间；Repository 查询后再次验证 Point-in-Time 边界，拒绝版本混用，确定
 性派生 as-of、缺失、过期、质量和内容指纹，再把通过 Domain 校验的快照写入 SQLite。
 
+M2-A 候选在 Provider 层新增 `ProviderCapability`、`ProviderAccessProfile`、
+`ProviderBarRequest` 以及结构化 `ProviderAdapter`/`MarketDataProvider` Protocol。产品技术能力
+与当前账户实际权限必须分开验证；市场数据的技术能力、数据质量、实时性、盘前盘后权限、
+周期按精确“市场 + 操作”键校验。每个受支持 bar 周期必须且只能声明一个历史起点，
+缺少窗口不能解释为无限历史，能力不能跨键或跨周期传播。请求同时使用内部 UUID 和
+供应商不透明标识，并按市场时区检查对应键的历史起点。为使这一规则在干净 Windows 上
+保持确定性，项目锁定 `tzdata`，standalone 构建显式包含并校验美股与港股 IANA zoneinfo
+资产。Adapter 只返回
+`DataSourceRecord`。Synthetic Mock 不访问网络或凭证，完整决策见
+[ADR-0011](adr/0011-provider-capability-entitlement.md)。
+
 ## 5. 模型数据流
 
 ```text
@@ -171,6 +182,8 @@ SQLite integrity 和两种 Schema 校验。恢复在服务内锁保护下要求�
 - 正式本地 API 使用临时会话认证、精确 CORS 和 localhost 绑定。
 - 导入路径与 Sidecar 参数使用白名单。
 - CI 中所有供应商与 LLM 调用必须 Mock。
+- 供应商产品能力不能替代当前账户的实时、盘前或盘后权限验证；两者必须按精确市场与
+  操作键匹配，凭证不进入 Provider Access 契约。
 - 仓库中不存在实盘提交路由。
 - 开发工具链、依赖缓存和临时文件必须保留在仓库内，并从不继承科研、Conda、ROS、
   CUDA、容器或用户代理环境；完整决策见 [ADR-0006](adr/0006-project-local-toolchains.md)。
@@ -203,7 +216,11 @@ M1-A 至 M1-E 均已通过 Linux 与 Windows 托管验证：
 - 备份跳过 Parquet 临时目录，发现 WAL、符号链接、变化文件或未知 Schema 时拒绝；
 - 恢复拒绝路径穿越、额外项、ZIP 链接、内容篡改和超限，且不覆盖已有目录；
 - 测试数据库、归档和原始对象只位于 Runner 仓库内临时目录；
-- 尚未实现供应商连接、模型、订单或真实金融调用。
+- Synthetic Mock 已通过统一 Adapter 边界提供 Point-in-Time bar 过滤，并验证技术能力
+  与账户权限不会跨市场或跨操作形成虚假组合、不同 bar 周期不会共享或缺省历史起点，
+  无系统 IANA 数据库时仍可解析 US/HK 市场时区，且 Adapter 不向调用方暴露可变的内部
+  合成记录；
+- 尚未实现真实供应商连接、Instrument Registry、模型、订单或真实金融调用。
 
 M1 的退出条件、精确 Runner、Artifact 摘要和已知限制见
 [M1 正式验收](m1-acceptance.md)；后续进度见 [roadmap.md](roadmap.md)。

@@ -1,1 +1,40 @@
-"""External data providers must enter through adapter interfaces."""
+"""Vendor-neutral contracts and interfaces for all external data providers."""
+
+from qfusion.providers.contracts import (
+    AssetType,
+    BarHistoryWindow,
+    DataDeliveryQuality,
+    DataInterval,
+    MarketDataAccess,
+    MarketDataCapability,
+    ProviderAccessProfile,
+    ProviderAccessStatus,
+    ProviderBarRequest,
+    ProviderCapability,
+    ProviderOperation,
+    RateLimitPolicy,
+    validate_bar_request,
+    validate_provider_access,
+)
+from qfusion.providers.interfaces import MarketDataProvider, ProviderAdapter
+from qfusion.providers.mock import SyntheticMockMarketDataProvider
+
+__all__ = [
+    "AssetType",
+    "BarHistoryWindow",
+    "DataDeliveryQuality",
+    "DataInterval",
+    "MarketDataAccess",
+    "MarketDataCapability",
+    "MarketDataProvider",
+    "ProviderAccessProfile",
+    "ProviderAccessStatus",
+    "ProviderAdapter",
+    "ProviderBarRequest",
+    "ProviderCapability",
+    "ProviderOperation",
+    "RateLimitPolicy",
+    "SyntheticMockMarketDataProvider",
+    "validate_bar_request",
+    "validate_provider_access",
+]

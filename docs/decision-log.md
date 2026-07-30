@@ -16,6 +16,7 @@
 | [0008](adr/0008-duckdb-parquet-raw-fact-storage.md) | 分析事实使用受限 DuckDB、不可变 Parquet 批次和内容寻址 Raw Store | Accepted | 2026-07-30 |
 | [0009](adr/0009-deterministic-snapshot-construction.md) | 快照使用显式 fact policy、双重 Point-in-Time 守卫和可复现内容指纹 | Accepted | 2026-07-30 |
 | [0010](adr/0010-offline-audited-backup-restore.md) | Local Lite 使用离线审计归档并只恢复到不存在的新数据根 | Accepted | 2026-07-30 |
+| [0011](adr/0011-provider-capability-entitlement.md) | 供应商能力与账户权限按市场和操作分离，bar 历史范围按周期声明 | Accepted | 2026-07-30 |
 
 ## 状态定义
 

@@ -218,10 +218,34 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 
 ## M2：首批数据适配器
 
-状态：入口条件已满足；先实现供应商能力契约与确定性 Mock Adapter。
+状态：入口条件已满足；M2-A 候选等待跨平台 Runner 验证。
 
 实现 SEC、FRED、一个美股行情源、一个港股行情源和必要的 Mock Adapter。逐一验证许可、
 字段、限流、时区、休市和延迟状态。
+
+### M2-A：供应商能力、账户权限与 Synthetic Mock
+
+候选范围：
+
+- [x] 供应商技术能力与当前账户实际权限使用两份独立、冻结的 Pydantic 契约；
+- [x] 能力声明覆盖市场、资产、产品特性、限流、venue、质量与许可；市场数据周期、实时、
+  盘前盘后按精确“市场 + 操作”键声明，每个受支持 bar 周期必须且只能声明一个历史起点；
+- [x] 账户权限按相同键记录数据质量，并分别声明盘前与盘后权限；
+- [x] 技术能力与账户权限均拒绝跨市场或跨操作形成虚假能力组合；
+- [x] bar 请求携带双重证券标识，分别声明盘前/盘后，并按市场时区检查对应键历史起点；
+- [x] `ProviderAdapter` 与 `MarketDataProvider` Protocol 不暴露供应商 SDK 类型；
+- [x] Synthetic Mock 仅返回 `SYNTHETIC_MOCK`/`test-only` 的合成事实；
+- [x] Mock 按证券、事实类型、事件区间和 `available_at <= decision_time` 过滤，并对输入
+  与返回记录执行深拷贝以隔离嵌套载荷变更；
+- [x] 锁定项目本地 `tzdata` 2026.3；Nuitka 显式包含并审计 US/HK 所需 IANA 资产，
+  compiled CLI 在空系统 `TZPATH` 下实际解析两个时区；
+- [x] ADR-0011、供应商登记、测试和 Windows 部署文档已更新；
+- [ ] Linux Runner 的 Lint、mypy、pytest、前端回归、构建与动态 E2E；
+- [ ] Windows Runner 的 Rust、Python、前端、standalone Sidecar 与 NSIS 回归。
+
+M2-A 仅新增锁定的纯数据运行时依赖 `tzdata`，不改变任何既有依赖版本；不访问
+供应商网络端点、不读取凭证，也不实现真实供应商或 Instrument Registry。通过跨平台
+门禁并合并后进入 M2-B。
 
 ## M3：因子和特征系统
 

@@ -24,6 +24,11 @@ SQLALCHEMY_SQLITE_DRIVER_MODULE = "sqlalchemy.dialects.sqlite.pysqlite"
 SQLALCHEMY_EXCLUDED_MODULES = (
     "sqlalchemy.dialects.oracle.dictionary",
 )
+TZDATA_PACKAGE_NAME = "tzdata"
+REQUIRED_TIMEZONE_ASSETS = (
+    Path("tzdata/zoneinfo/America/New_York"),
+    Path("tzdata/zoneinfo/Asia/Hong_Kong"),
+)
 
 
 def _sha256(filename: Path) -> str:
@@ -128,6 +133,35 @@ def _copy_migration_assets(destination: Path) -> list[dict[str, str]]:
     return records
 
 
+def _verify_timezone_assets(
+    standalone_directory: Path,
+) -> list[dict[str, str]]:
+    """Verify required IANA zones were bundled into the standalone directory."""
+
+    output_root = OUTPUT_DIRECTORY.resolve()
+    if standalone_directory.is_symlink():
+        raise RuntimeError("Standalone artifact directory must not be a symlink.")
+    resolved_directory = standalone_directory.resolve(strict=True)
+    if not resolved_directory.is_relative_to(output_root):
+        raise RuntimeError("Standalone artifact directory is outside the build directory.")
+
+    records: list[dict[str, str]] = []
+    for relative_path in REQUIRED_TIMEZONE_ASSETS:
+        unresolved_asset = standalone_directory / relative_path
+        if unresolved_asset.is_symlink():
+            raise RuntimeError(f"Timezone asset must not be a symlink: {relative_path}")
+        asset = unresolved_asset.resolve(strict=True)
+        if not asset.is_relative_to(resolved_directory) or not asset.is_file():
+            raise RuntimeError(f"Timezone asset escaped the standalone directory: {relative_path}")
+        records.append(
+            {
+                "path": relative_path.as_posix(),
+                "sha256": _sha256(asset),
+            }
+        )
+    return records
+
+
 def _build_nuitka_command(
     executable_name: str, *, system_name: str | None = None
 ) -> tuple[list[str], str]:
@@ -160,6 +194,10 @@ def _build_nuitka_command(
         f"--nofollow-import-to={module_name}"
         for module_name in SQLALCHEMY_EXCLUDED_MODULES
     )
+    # zoneinfo loads this fallback through importlib.resources when the host has
+    # no IANA database (the normal case on clean Windows installations).
+    command.append(f"--include-package={TZDATA_PACKAGE_NAME}")
+    command.append(f"--include-package-data={TZDATA_PACKAGE_NAME}")
     command.append(str(PACKAGE_DIRECTORY))
     return command, dependency_scanner
 
@@ -195,8 +233,9 @@ def main() -> None:
     executable = _find_standalone_executable(executable_name)
     migration_directory = executable.parent / BUNDLED_MIGRATIONS_DIRECTORY_NAME
     migration_files = _copy_migration_assets(migration_directory)
+    timezone_files = _verify_timezone_assets(executable.parent)
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "artifact_type": "nuitka-standalone",
         "dependency_scanner": dependency_scanner,
         "executable": executable.relative_to(REPOSITORY_ROOT).as_posix(),
@@ -206,6 +245,10 @@ def main() -> None:
             "heads": list(migration_heads),
             "files": migration_files,
         },
+        "timezone_assets": {
+            "package": TZDATA_PACKAGE_NAME,
+            "files": timezone_files,
+        },
     }
     BUILD_MANIFEST.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -214,6 +257,7 @@ def main() -> None:
     print(f"QFUSION_BACKEND_BUILD_OK executable={manifest['executable']}")
     print(f"QFUSION_BACKEND_SHA256={manifest['sha256']}")
     print(f"QFUSION_MIGRATION_HEADS={','.join(migration_heads)}")
+    print(f"QFUSION_TIMEZONE_ASSETS={len(timezone_files)}")
 
 
 if __name__ == "__main__":

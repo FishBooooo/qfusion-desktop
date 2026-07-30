@@ -47,6 +47,9 @@ Windows standalone 健康测试必须由构建工作流直接持有新进程句�
 
 - 只接受 `dist/backend/build-manifest.json` 记录的仓库内相对路径；
 - 启动前重新计算 EXE SHA-256；
+- 解析 schema v3 清单，逐文件验证打包的 Alembic 迁移和 `tzdata` IANA 资产；
+- 必须包含 `America/New_York` 与 `Asia/Hong_Kong`，并以空
+  `PYTHONTZPATH` 调用 compiled CLI，使 EXE 清空系统 `TZPATH` 后实际解析两个时区；
 - 仅绑定操作系统分配的 Runner 自身动态 Loopback 端口；
 - 不扫描端口、不跟随 HTTP 重定向、不访问其他服务；
 - 验证精确健康端点与 M0 响应字段；
@@ -98,6 +101,28 @@ Artifact 摘要为
 M1 测试覆盖 Point-in-Time 时间边界、迁移、Repository 往返、单写入、失败回滚、Parquet
 与 Raw Store 完整性、可复现快照、备份恢复、恶意归档和 Windows 路径可移植性。完整矩阵、
 历史运行和限制见 [M1 正式验收](m1-acceptance.md)。
+
+## M2-A 候选测试门禁
+
+供应商边界单元测试必须覆盖：
+
+- 能力声明集合规范化、重复值、特性布尔值、操作与限流一致性；
+- 账户权限状态、UTC 验证时间，以及按“市场 + 操作”匹配的数据质量和技术能力；
+- 技术能力与账户权限均拒绝跨市场、跨操作形成的实时或延长时段虚假组合；
+- bar 请求的时区、起止时间、决策时间、市场、周期、逐周期历史起点及盘前盘后双重权限；
+- 每个受支持 bar 周期恰有一个历史窗口，缺少、重复或多余窗口均被拒绝；
+- 清空 Python 系统 `TZPATH` 后，锁定的项目本地 `tzdata` 仍能解析 US/HK 市场时区；
+- 内部 UUID 与供应商不透明证券 ID 的映射一致性；
+- Synthetic Mock 的来源、许可、质量、版本和事实类型拒绝边界；
+- 按证券、事件区间、bar 类型与 `available_at <= decision_time` 的确定性过滤；
+- 空响应、未知证券、重复事实，以及输入记录或返回记录的嵌套载荷变更不影响 Adapter
+  内部状态和后续确定性结果。
+
+M2-A 不执行真实 HTTP、重试或供应商 SDK 测试。Windows 门禁还必须实际完成 Nuitka
+standalone 构建，由清单验证两个 IANA 文件位于 Artifact 内，并由 compiled CLI 在空系统
+`TZPATH` 下实际解析两个时区。每个真实 Adapter
+进入后，必须另增官方响应
+Fixture、字段变化、限流、超时、重试、空响应、时区、休市、修订和账户权限 Contract 测试。
 
 ## 后续金融测试门禁
 
