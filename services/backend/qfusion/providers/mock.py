@@ -124,9 +124,8 @@ class SyntheticMockMarketDataProvider:
             and record.available_at <= request.decision_time
         )
 
-    @classmethod
+    @staticmethod
     def _validate_record(
-        cls,
         record: DataSourceRecord,
         instrument_map: Mapping[UUID, str],
     ) -> None:
