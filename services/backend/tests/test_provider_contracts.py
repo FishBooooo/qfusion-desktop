@@ -183,6 +183,43 @@ def test_capability_rejects_bars_without_intervals_and_orphan_extended_hours() -
             supports_premarket=True,
         )
 
+    with raises(ValidationError, match="realtime"):
+        make_capability(
+            operations=(ProviderOperation.FILINGS,),
+            supported_intervals=(),
+            supports_filings=True,
+            supports_realtime=True,
+        )
+
+
+def test_capability_accepts_coherent_feature_and_realtime_declarations() -> None:
+    capability = make_capability(
+        supports_realtime=True,
+        supports_options=True,
+        supports_fundamentals=True,
+        supports_news=True,
+        supports_filings=True,
+        supports_streaming=True,
+        operations=(
+            ProviderOperation.BARS,
+            ProviderOperation.CORPORATE_ACTIONS,
+            ProviderOperation.ESTIMATES,
+            ProviderOperation.FILINGS,
+            ProviderOperation.FUNDAMENTALS,
+            ProviderOperation.NEWS,
+            ProviderOperation.OPTION_CHAIN,
+            ProviderOperation.OPTION_SNAPSHOT,
+            ProviderOperation.STREAM_QUOTES,
+        ),
+    )
+
+    assert capability.supports_realtime
+    assert capability.supports_options
+    assert capability.supports_fundamentals
+    assert capability.supports_news
+    assert capability.supports_filings
+    assert capability.supports_streaming
+
 
 @mark.parametrize(
     ("flag", "operation", "label"),
@@ -331,6 +368,44 @@ def test_provider_access_validates_identity_operations_markets_and_quality() -> 
                 ),
             ),
         )
+    with raises(ValueError, match="identity"):
+        validate_provider_access(
+            capability,
+            make_access(provider_version="2.0.0"),
+        )
+
+
+def test_provider_access_allows_realtime_only_when_capability_supports_it() -> None:
+    capability = make_capability(supports_realtime=True)
+    access = make_access(
+        market_data_quality=(
+            MarketDataAccess(
+                market=Market.US,
+                data_quality=DataDeliveryQuality.REALTIME,
+            ),
+        ),
+    )
+
+    assert validate_provider_access(capability, access) is access
+
+
+def test_unavailable_market_entry_does_not_claim_market_data() -> None:
+    capability = make_capability(
+        operations=(ProviderOperation.NEWS,),
+        supported_intervals=(),
+        supports_news=True,
+    )
+    access = make_access(
+        enabled_operations=(ProviderOperation.NEWS,),
+        market_data_quality=(
+            MarketDataAccess(
+                market=Market.US,
+                data_quality=DataDeliveryQuality.UNAVAILABLE,
+            ),
+        ),
+    )
+
+    assert validate_provider_access(capability, access) is access
 
 
 def test_provider_access_requires_market_data_operation_for_quality_claim() -> None:
@@ -413,3 +488,9 @@ def test_bar_request_rejects_unsupported_market_interval_and_extended_hours() ->
     extended_request = make_request(include_extended_hours=True)
     with raises(ValueError, match="extended-hours"):
         validate_bar_request(capability, access, extended_request)
+
+    extended_capability = make_capability(supports_premarket=True)
+    assert (
+        validate_bar_request(extended_capability, access, extended_request)
+        is extended_request
+    )
