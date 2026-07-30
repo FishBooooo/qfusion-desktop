@@ -50,6 +50,17 @@ M2-C2a 门禁已通过精确提交的 Linux/Windows 验证并合并；审计与�
 [M2-C2a 验收记录](m2c2a-acceptance.md)。该验收不代表已配置联系标识、执行 live request
 或取得官方响应 Fixture。
 
+## M2-D0 供应商使用许可边界
+
+- 技术能力、账户权限和使用许可分别建模，任何一份都不能替代另外两份。
+- 缓存、长期持久化、展示、商业使用、再分发和模型处理都需要精确 `ALLOWED`。
+- `PROHIBITED` 与 `UNVERIFIED` 统一在副作用前 fail closed，并输出
+  `BLOCKED_BY_PROVIDER_LICENSE`。
+- SEC filing 持久化校验位于固定 origin Transport 前；许可拒绝测试确认不发起请求。
+- FRED/ALFRED 当前条款与 QFusion 本地持久化及模型路径冲突，因此没有 Adapter、key、
+  live request、Fixture、缓存或数据库记录。
+- 条款 URL、复核日期、署名和提示属于审计数据；真实凭证仍不得进入策略、日志或仓库。
+
 ## 后续必须实现
 
 - 每次启动的临时会话令牌和随机端口握手；
