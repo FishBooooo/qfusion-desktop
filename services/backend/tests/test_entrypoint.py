@@ -65,7 +65,7 @@ def test_timezone_verifier_loads_project_data_and_restores_tzpath() -> None:
         "America/New_York",
         "Asia/Hong_Kong",
     )
-    assert zoneinfo.TZPATH == original_tzpath
+    assert original_tzpath == zoneinfo.TZPATH
 
 
 def test_entrypoint_can_verify_packaged_timezone_data_without_server() -> None:
