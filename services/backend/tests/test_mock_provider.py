@@ -24,10 +24,11 @@ INSTRUMENT_ID = UUID("20000000-0000-4000-8000-000000000001")
 OTHER_INSTRUMENT_ID = UUID("20000000-0000-4000-8000-000000000002")
 EVENT_TIME = datetime(2026, 7, 30, 19, 50, tzinfo=UTC)
 DECISION_TIME = EVENT_TIME + timedelta(minutes=6)
+DEFAULT_FACT_ID = UUID("10000000-0000-4000-8000-000000000001")
 
 
 def make_record(
-    fact_id: UUID = UUID("10000000-0000-4000-8000-000000000001"),
+    fact_id: UUID = DEFAULT_FACT_ID,
     **overrides: object,
 ) -> DataSourceRecord:
     event_time = overrides.pop("event_time", EVENT_TIME)
