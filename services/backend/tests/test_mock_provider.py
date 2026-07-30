@@ -163,16 +163,39 @@ def test_mock_provider_selects_minute_fact_type_and_supports_empty_response() ->
     assert asyncio.run(empty.get_bars(make_request())) == ()
 
 
-def test_mock_provider_copies_seed_records_and_mapping() -> None:
-    accepted = make_record()
+def test_mock_provider_deep_copies_seed_and_returned_records() -> None:
+    accepted = make_record(
+        payload={
+            "close": "100.00",
+            "metadata": {"tags": ["seed"]},
+        },
+    )
     records = [accepted]
     instrument_map = {INSTRUMENT_ID: "opaque-instrument-1"}
     provider = SyntheticMockMarketDataProvider(records, instrument_map)
 
+    seed_metadata = accepted.payload["metadata"]
+    assert isinstance(seed_metadata, dict)
+    seed_tags = seed_metadata["tags"]
+    assert isinstance(seed_tags, list)
+    seed_tags.append("mutated-input")
     records.clear()
     instrument_map[INSTRUMENT_ID] = "mutated"
 
-    assert asyncio.run(provider.get_bars(make_request())) == (accepted,)
+    first = asyncio.run(provider.get_bars(make_request()))
+    first_metadata = first[0].payload["metadata"]
+    assert isinstance(first_metadata, dict)
+    first_tags = first_metadata["tags"]
+    assert first_tags == ["seed"]
+    assert isinstance(first_tags, list)
+    first_tags.append("mutated-return")
+
+    second = asyncio.run(provider.get_bars(make_request()))
+    second_metadata = second[0].payload["metadata"]
+    assert isinstance(second_metadata, dict)
+    assert second_metadata["tags"] == ["seed"]
+    assert second[0] is not first[0]
+    assert second[0].payload is not first[0].payload
 
 
 def test_mock_provider_rejects_unknown_or_mismatched_provider_instrument_id() -> None:
