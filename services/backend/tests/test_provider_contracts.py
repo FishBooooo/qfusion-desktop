@@ -205,6 +205,11 @@ def test_capability_requires_usage_policy_schema_v2() -> None:
     with raises(ValidationError, match="string_pattern_mismatch"):
         make_capability(schema_version="1.0.0")
 
+    values = capability.model_dump()
+    del values["usage_policy"]
+    with raises(ValidationError, match="usage_policy"):
+        ProviderCapability.model_validate(values)
+
 
 def test_capability_canonicalizes_collections_and_rate_limits() -> None:
     capability = make_capability(
