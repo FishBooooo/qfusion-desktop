@@ -215,6 +215,10 @@ def upgrade() -> None:
         sa.Column("market", sa.String(length=8), nullable=False),
         sa.Column("asset_type", sa.String(length=32), nullable=False),
         sa.Column("display_name", sa.String(length=256), nullable=False),
+        sa.Column("source", sa.String(length=128), nullable=False),
+        sa.Column("source_record_id", sa.String(length=128), nullable=False),
+        sa.Column("source_version", sa.String(length=128), nullable=False),
+        sa.Column("revision_id", sa.String(length=128), nullable=False),
         sa.Column("registered_at", sa.DateTime(), nullable=False),
         sa.CheckConstraint("market IN ('US', 'HK')", name="ck_instruments_market"),
         sa.CheckConstraint(
@@ -245,6 +249,7 @@ def upgrade() -> None:
         sa.Column("available_at", sa.DateTime(), nullable=False),
         sa.Column("source", sa.String(length=128), nullable=False),
         sa.Column("source_record_id", sa.String(length=128), nullable=False),
+        sa.Column("source_version", sa.String(length=128), nullable=False),
         sa.Column("revision_id", sa.String(length=128), nullable=False),
         sa.CheckConstraint(
             "valid_to IS NULL OR valid_from < valid_to",
