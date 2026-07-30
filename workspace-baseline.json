@@ -44,6 +44,7 @@
     "docs/m1-acceptance.md",
     "docs/m2c1-acceptance.md",
     "docs/m2c2a-acceptance.md",
+    "docs/m2d0-acceptance.md",
     "docs/workspace-validation.md",
     "docs/adr/0001-local-lite-storage.md",
     "docs/adr/0002-tauri-fastapi-sidecar.md",
