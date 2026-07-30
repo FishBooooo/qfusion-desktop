@@ -57,7 +57,7 @@ class DefaultPublicResolver:
             socket.AF_UNSPEC,
             socket.SOCK_STREAM,
         )
-        addresses = {item[4][0] for item in results}
+        addresses = {str(item[4][0]) for item in results}
         return tuple(sorted(addresses))
 
 
@@ -144,7 +144,7 @@ class SecHttpTransport:
                     parsed = max(0.0, float(retry_after))
                 except ValueError:
                     parsed = 0.0
-                return min(parsed, self._config.max_retry_delay_seconds)
+                return float(min(parsed, self._config.max_retry_delay_seconds))
         exponential = 0.25 * (2**attempt)
         return min(exponential, self._config.max_retry_delay_seconds)
 
