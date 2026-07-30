@@ -244,7 +244,7 @@ def test_restore_rejects_traversal_extra_entries_and_zip_symlinks(tmp_path: Path
     invalid_manifest = {
         "schema_version": "1.0.0",
         "created_at": _DECISION_TIME.isoformat(),
-        "sqlite_revision": "0001_m1b_snapshots",
+        "sqlite_revision": "0002_m2b_instruments",
         "duckdb_schema_version": "1",
         "entries": [
             {"relative_path": "../escape", "byte_count": 1, "sha256": "0" * 64},
@@ -343,7 +343,7 @@ def test_restore_rejects_windows_unsafe_paths(
                 {
                     "schema_version": "1.0.0",
                     "created_at": _DECISION_TIME.isoformat(),
-                    "sqlite_revision": "0001_m1b_snapshots",
+                    "sqlite_revision": "0002_m2b_instruments",
                     "duckdb_schema_version": "1",
                     "entries": manifest_entries,
                 }
@@ -382,7 +382,7 @@ def test_restore_rejects_case_collisions_and_non_regular_entries(
                 {
                     "schema_version": "1.0.0",
                     "created_at": _DECISION_TIME.isoformat(),
-                    "sqlite_revision": "0001_m1b_snapshots",
+                    "sqlite_revision": "0002_m2b_instruments",
                     "duckdb_schema_version": "1",
                     "entries": entries,
                 }
