@@ -467,7 +467,6 @@ def test_provider_access_validates_identity_operations_markets_and_quality() -> 
         )
 
 
-
 def test_provider_access_rejects_unsupported_scoped_market_operation() -> None:
     access = make_access(
         market_data_quality=(
@@ -481,6 +480,7 @@ def test_provider_access_rejects_unsupported_scoped_market_operation() -> None:
 
     with raises(ValueError, match="unsupported market-data operation"):
         validate_provider_access(make_capability(), access)
+
 
 def test_provider_access_allows_realtime_only_when_capability_supports_it() -> None:
     capability = make_capability(
@@ -808,7 +808,6 @@ def test_bar_request_rejects_cross_operation_extended_hours_capability() -> None
         validate_bar_request(capability, access, request)
 
 
-
 def test_bar_request_rejects_cross_market_account_entitlement() -> None:
     capability = make_capability(
         supported_markets=(Market.US, Market.HK),
@@ -847,6 +846,7 @@ def test_bar_request_rejects_cross_market_account_entitlement() -> None:
 
     with raises(PermissionError, match="premarket"):
         validate_bar_request(capability, access, request)
+
 
 def test_bar_request_rejects_cross_operation_account_entitlement() -> None:
     capability = make_capability(
