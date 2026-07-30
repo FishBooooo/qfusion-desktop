@@ -6,9 +6,10 @@ import copy
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import JsonValue, cast
+from typing import cast
 from uuid import UUID
 
+from pydantic import JsonValue
 from pytest import raises
 
 from qfusion.domain import Market, QualityFlag
