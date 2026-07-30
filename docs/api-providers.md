@@ -1,6 +1,6 @@
 # 数据供应商登记
 
-状态：M2-A/M2-B/M2-C1 已验收；M2-C1 尚未执行真实供应商请求。
+状态：M2-C2a 手动采集门禁为候选；尚未执行真实供应商请求。
 最后更新：2026-07-30
 
 ## 1. 强制登记字段
@@ -130,6 +130,16 @@ QFusion 首次实际收到响应的时间记为 `available_at`，并返回事实
 [ADR-0013](adr/0013-sec-edgar-public-egress.md)，精确跨平台证据见
 [M2-C1 验收记录](m2c1-acceptance.md)。实现已通过 PR #15 合并到 `main` 提交
 `ab50e28c16c4dd6b8908ee7e37fdd2ab98bc65f0`。
+
+### 5.2 M2-C2a 官方响应采集门禁（候选）
+
+官方响应只能由默认分支的手动 GitHub 工作流取得。工作流先验证精确 CIK 和仓库 Secret
+`SEC_USER_AGENT`，再运行无网络 SEC 测试，最后通过 M2-C1 的固定 origin Transport
+执行一次请求。原始字节与解码对象必须一致，且受 10 MiB 默认、50 MiB 绝对上限保护。
+
+短期 Artifact 只包含原始响应和无秘密清单，保留 1 天，不自动写入仓库或 Raw Store。
+当前候选尚未执行 live request，也不代表官方 Fixture 已审查。完整决策见
+[ADR-0014](adr/0014-manual-sec-official-capture.md)。
 
 官方依据：
 

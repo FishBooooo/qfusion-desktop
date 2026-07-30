@@ -138,6 +138,11 @@ Repository 持久化；如果在网络请求创建时就按决策时间过滤，
 固定出站、时间语义和 company facts 延后条件见
 [ADR-0013](adr/0013-sec-edgar-public-egress.md)。跨平台验收证据见 [M2-C1 验收记录](m2c1-acceptance.md)。
 
+M2-C2a 在 Transport 边界保留有界的精确响应字节及其解码对象，并强制二者一致。官方
+响应只能通过手动 GitHub Runner 门禁生成短期、无秘密 Artifact；常规 CI 不联网，采集
+结果不自动进入仓库或 Raw Store。见
+[ADR-0014](adr/0014-manual-sec-official-capture.md)。
+
 ## 5. 模型数据流
 
 ```text

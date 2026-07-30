@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import UTC, datetime
 from typing import Annotated, Self
 from uuid import UUID
@@ -72,6 +74,11 @@ class SecTransportConfig(ProviderContract):
     max_attempts: int = Field(default=3, ge=1, le=4)
     max_retry_delay_seconds: float = Field(default=2.0, ge=0.0, le=10.0)
     max_requests_per_second: int = Field(default=5, ge=1, le=5)
+    max_response_bytes: int = Field(
+        default=10 * 1024 * 1024,
+        ge=1024,
+        le=50 * 1024 * 1024,
+    )
 
     @field_validator("user_agent")
     @classmethod
@@ -84,15 +91,48 @@ class SecTransportConfig(ProviderContract):
 
 
 class SecJsonResponse(ProviderContract):
-    """One decoded SEC response plus its first observed receipt time."""
+    """One exact SEC response body plus its validated decoded representation."""
 
     payload: dict[str, JsonValue]
+    raw_body: bytes = Field(min_length=2, max_length=50 * 1024 * 1024, repr=False)
     received_at: datetime
+    content_type: str | None = Field(default=None, min_length=1, max_length=256)
+    etag: str | None = Field(default=None, min_length=1, max_length=512)
+    last_modified: str | None = Field(default=None, min_length=1, max_length=128)
 
     @field_validator("received_at")
     @classmethod
     def normalize_received_at(cls, value: datetime) -> datetime:
         return _as_utc(value)
+
+    @model_validator(mode="after")
+    def require_raw_body_payload_equivalence(self) -> Self:
+        try:
+            decoded: object = json.loads(self.raw_body)
+        except (json.JSONDecodeError, UnicodeDecodeError) as error:
+            raise ValueError("SEC raw body must contain valid JSON") from error
+        if not isinstance(decoded, dict) or not all(
+            isinstance(key, str) for key in decoded
+        ):
+            raise ValueError("SEC raw body must contain a JSON object")
+        if decoded != self.payload:
+            raise ValueError("SEC raw body does not match the decoded payload")
+        return self
+
+    @property
+    def raw_body_sha256(self) -> str:
+        """Return the audit digest of the exact received response bytes."""
+
+        return hashlib.sha256(
+            self.raw_body,
+            usedforsecurity=False,
+        ).hexdigest()
+
+    @property
+    def raw_body_size(self) -> int:
+        """Return the exact response byte count."""
+
+        return len(self.raw_body)
 
 
 def validate_sec_filing_request(

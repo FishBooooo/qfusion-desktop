@@ -1,6 +1,11 @@
 """SEC EDGAR Adapter, contracts, parser, and fixed-origin transport."""
 
 from qfusion.providers.sec.adapter import SecEdgarProvider
+from qfusion.providers.sec.capture import (
+    SecCaptureManifest,
+    build_sec_capture_manifest,
+    write_sec_capture_bundle,
+)
 from qfusion.providers.sec.contracts import (
     SecCik,
     SecFilingRequest,
@@ -26,6 +31,7 @@ from qfusion.providers.sec.transport import (
 __all__ = [
     "DefaultPublicResolver",
     "HostResolver",
+    "SecCaptureManifest",
     "SecCik",
     "SecEdgarProvider",
     "SecFilingProvider",
@@ -37,7 +43,9 @@ __all__ = [
     "SecPayloadError",
     "SecTransportConfig",
     "SecTransportError",
+    "build_sec_capture_manifest",
     "parse_sec_submissions",
     "require_public_addresses",
     "validate_sec_filing_request",
+    "write_sec_capture_bundle",
 ]

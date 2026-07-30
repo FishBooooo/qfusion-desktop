@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M2-C1 SEC submissions 采集边界已验收；M2-C 尚未完成
+状态：M2-C2a SEC 官方响应手动采集门禁为候选；尚未执行 live request
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -355,6 +355,19 @@ M2-C1 的精确提交、Linux/Windows Runner、Artifact 与隔离证据见
 
 M2-C1 只完成安全采集边界，不代表 SEC 在线接入或整个 M2-C 完成。CIK 只能作为 SEC
 供应商不透明标识通过 Instrument Registry 解析。
+
+#### M2-C2a：官方响应手动采集门禁（候选）
+
+- [x] Transport 保留有大小上限的精确原始字节，并验证其与解码对象一致；
+- [x] 生成不含联系标识的来源 URL、CIK、commit、run ID、时间、字节数和 SHA-256 清单；
+- [x] 仅允许 GitHub 手动触发，缺少 `SEC_USER_AGENT` 时在供应商网络前失败；
+- [x] 常规 CI/Windows 继续使用 Mock，手动 Artifact 只保留 1 天且不自动提交；
+- [ ] 在默认分支配置合规联系标识并手动取得官方响应；
+- [ ] 审查响应和许可后固定最小官方 Fixture，并增加字段漂移测试。
+
+本候选只建立门禁，当前不会执行真实 SEC 请求，也不完成 Raw Store、Repository、
+Scheduler 或 company facts。完整决策见
+[ADR-0014](adr/0014-manual-sec-official-capture.md)。
 
 ## M3：因子和特征系统
 

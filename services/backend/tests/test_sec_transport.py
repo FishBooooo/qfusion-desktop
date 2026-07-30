@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Final
@@ -89,18 +90,32 @@ def test_success_uses_fixed_host_path_declared_headers_and_receipt_time() -> Non
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return httpx.Response(200, json={"cik": 1, "name": "TEST", "filings": {}})
+        return httpx.Response(
+            200,
+            json={"cik": 1, "name": "TEST", "filings": {}},
+            headers={
+                "ETag": "\"synthetic-etag\"",
+                "Last-Modified": "Thu, 30 Jul 2026 12:00:00 GMT",
+            },
+        )
 
     response = asyncio.run(fetch_and_close(make_transport(handler)))
 
     assert response.received_at == _NOW
     assert response.payload["cik"] == 1
+    assert json.loads(response.raw_body) == response.payload
+    assert len(response.raw_body_sha256) == 64
+    assert response.raw_body_size == len(response.raw_body)
+    assert response.content_type == "application/json"
+    assert response.etag == "\"synthetic-etag\""
+    assert response.last_modified == "Thu, 30 Jul 2026 12:00:00 GMT"
     assert len(requests) == 1
     assert requests[0].url == httpx.URL(
         "https://data.sec.gov/submissions/CIK0000000001.json"
     )
     assert requests[0].headers["User-Agent"] == "QFusion CI ci@example.com"
     assert requests[0].headers["Accept"] == "application/json"
+    assert requests[0].headers["Accept-Encoding"] == "identity"
 
 
 def test_private_dns_blocks_before_http_request() -> None:
@@ -271,3 +286,24 @@ def test_rate_limiter_serializes_consecutive_requests_at_five_per_second() -> No
     asyncio.run(run_twice())
 
     assert clock.delays == [0.2]
+
+
+def test_response_byte_limit_fails_before_envelope_validation() -> None:
+    raw_body = b'{"value":"' + (b"x" * 2048) + b'"}'
+
+    def oversized(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=raw_body,
+            headers={"Content-Type": "application/json"},
+        )
+
+    with raises(SecPayloadError, match="byte limit"):
+        asyncio.run(
+            fetch_and_close(
+                make_transport(
+                    oversized,
+                    transport_config=config(max_response_bytes=1024),
+                )
+            )
+        )
