@@ -81,6 +81,7 @@ class ProviderOperation(StrEnum):
     SHORT_INTEREST = "short_interest"
     SHORT_VOLUME = "short_volume"
     SOUTHBOUND_FLOW = "southbound_flow"
+    MACRO_SERIES = "macro_series"
 
 
 _MARKET_DATA_OPERATIONS = frozenset(
@@ -292,7 +293,7 @@ class MarketDataCapability(ProviderContract):
 class ProviderCapability(ProviderContract):
     """Versioned technical capability declared by an adapter implementation."""
 
-    schema_version: Annotated[str, StringConstraints(pattern=r"^2\.0\.0$")] = "2.0.0"
+    schema_version: Annotated[str, StringConstraints(pattern=r"^3\.0\.0$")] = "3.0.0"
     provider_name: NonEmptyText
     provider_version: NonEmptyText
     supported_markets: tuple[Market, ...]
@@ -322,8 +323,6 @@ class ProviderCapability(ProviderContract):
     @field_validator("supported_asset_types")
     @classmethod
     def normalize_asset_types(cls, values: tuple[AssetType, ...]) -> tuple[AssetType, ...]:
-        if not values:
-            raise ValueError("supported_asset_types must not be empty")
         if len(values) != len(set(values)):
             raise ValueError("supported_asset_types must be unique")
         return tuple(sorted(values, key=lambda item: item.value))
@@ -373,6 +372,12 @@ class ProviderCapability(ProviderContract):
     @model_validator(mode="after")
     def validate_capability_consistency(self) -> Self:
         operation_set = set(self.operations)
+        if not self.supported_asset_types and operation_set != {
+            ProviderOperation.MACRO_SERIES
+        }:
+            raise ValueError(
+                "providers without asset types may only declare macro_series"
+            )
         supported_markets = set(self.supported_markets)
         scoped_operation_set = {
             item.operation for item in self.market_data_capabilities
