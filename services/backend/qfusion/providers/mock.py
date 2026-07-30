@@ -77,7 +77,7 @@ class SyntheticMockMarketDataProvider:
 
         normalized_map: dict[UUID, str] = {}
         for instrument_id, provider_instrument_id in instrument_map.items():
-            if not provider_instrument_id or provider_instrument_id != provider_instrument_id.strip():
+            if (\n                not provider_instrument_id\n                or provider_instrument_id != provider_instrument_id.strip()\n            ):
                 raise ValueError("provider instrument identifiers must be non-empty and trimmed")
             normalized_map[instrument_id] = provider_instrument_id
         if len(normalized_map.values()) != len(set(normalized_map.values())):
@@ -91,7 +91,7 @@ class SyntheticMockMarketDataProvider:
             self._validate_record(record, normalized_map)
 
         self._instrument_map = normalized_map
-        self._records = tuple(sorted(selected, key=lambda item: (item.event_time, str(item.fact_id))))
+        self._records = tuple(\n            sorted(selected, key=lambda item: (item.event_time, str(item.fact_id)))\n        )
 
     @property
     def capability(self) -> ProviderCapability:
@@ -113,7 +113,7 @@ class SyntheticMockMarketDataProvider:
         if expected_provider_id is None:
             raise LookupError("instrument_id is not mapped for the synthetic provider")
         if request.provider_instrument_id != expected_provider_id:
-            raise ValueError("provider_instrument_id does not match the internal instrument mapping")
+            raise ValueError(\n                "provider_instrument_id does not match the internal instrument mapping"\n            )
 
         return tuple(
             record
