@@ -10,6 +10,7 @@ from uuid import UUID
 from qfusion.domain import DataSourceRecord, Market, QualityFlag
 from qfusion.providers.contracts import (
     AssetType,
+    BarHistoryWindow,
     DataDeliveryQuality,
     DataInterval,
     MarketDataAccess,
@@ -38,13 +39,31 @@ _MOCK_CAPABILITY: Final = ProviderCapability(
             market=Market.HK,
             operation=ProviderOperation.BARS,
             supported_intervals=(DataInterval.MINUTE_1, DataInterval.DAY_1),
-            historical_start=date(2000, 1, 1),
+            bar_history=(
+                BarHistoryWindow(
+                    interval=DataInterval.MINUTE_1,
+                    historical_start=date(2000, 1, 1),
+                ),
+                BarHistoryWindow(
+                    interval=DataInterval.DAY_1,
+                    historical_start=date(2000, 1, 1),
+                ),
+            ),
         ),
         MarketDataCapability(
             market=Market.US,
             operation=ProviderOperation.BARS,
             supported_intervals=(DataInterval.MINUTE_1, DataInterval.DAY_1),
-            historical_start=date(2000, 1, 1),
+            bar_history=(
+                BarHistoryWindow(
+                    interval=DataInterval.MINUTE_1,
+                    historical_start=date(2000, 1, 1),
+                ),
+                BarHistoryWindow(
+                    interval=DataInterval.DAY_1,
+                    historical_start=date(2000, 1, 1),
+                ),
+            ),
         ),
     ),
     supports_options=False,
@@ -104,7 +123,7 @@ class SyntheticMockMarketDataProvider:
         if len(normalized_map.values()) != len(set(normalized_map.values())):
             raise ValueError("provider instrument identifiers must be unique")
 
-        selected = tuple(records)
+        selected = tuple(record.model_copy(deep=True) for record in records)
         fact_ids = [record.fact_id for record in selected]
         if len(fact_ids) != len(set(fact_ids)):
             raise ValueError("synthetic records must have unique fact_id values")
@@ -141,7 +160,7 @@ class SyntheticMockMarketDataProvider:
             )
 
         return tuple(
-            record
+            record.model_copy(deep=True)
             for record in self._records
             if record.instrument_id == request.instrument_id
             and record.fact_type == request.fact_type
