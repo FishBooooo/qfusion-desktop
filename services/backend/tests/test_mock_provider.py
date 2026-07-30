@@ -16,6 +16,7 @@ from qfusion.providers import (
     MarketDataProvider,
     ProviderAdapter,
     ProviderBarRequest,
+    ProviderOperation,
     SyntheticMockMarketDataProvider,
 )
 
@@ -93,11 +94,20 @@ def test_mock_provider_satisfies_interfaces_and_declares_synthetic_access() -> N
     assert isinstance(provider, ProviderAdapter)
     assert isinstance(provider, MarketDataProvider)
     assert provider.capability.provider_name == "qfusion-synthetic-mock"
-    assert provider.capability.supports_realtime is False
     assert provider.capability.license_scope == "test-only"
-    assert tuple(item.data_quality for item in provider.access_profile.market_data_quality) == (
-        DataDeliveryQuality.SYNTHETIC_MOCK,
-        DataDeliveryQuality.SYNTHETIC_MOCK,
+    assert tuple(
+        (item.market, item.operation, item.supports_realtime)
+        for item in provider.capability.market_data_capabilities
+    ) == (
+        (Market.HK, ProviderOperation.BARS, False),
+        (Market.US, ProviderOperation.BARS, False),
+    )
+    assert tuple(
+        (item.market, item.operation, item.data_quality)
+        for item in provider.access_profile.market_data_quality
+    ) == (
+        (Market.HK, ProviderOperation.BARS, DataDeliveryQuality.SYNTHETIC_MOCK),
+        (Market.US, ProviderOperation.BARS, DataDeliveryQuality.SYNTHETIC_MOCK),
     )
 
 
