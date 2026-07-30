@@ -1,6 +1,6 @@
 # 数据供应商登记
 
-状态：M2-A 供应商边界候选；仅实现确定性 Synthetic Mock，尚未连接真实供应商。
+状态：M2-A 供应商边界已验收；仅实现确定性 Synthetic Mock，尚未连接真实供应商。
 最后更新：2026-07-30
 
 ## 1. 强制登记字段
@@ -72,6 +72,10 @@ Mock Adapter 只过滤调用方传入的已通过 `DataSourceRecord` 校验的�
 市场时区边界不依赖 Windows 宿主数据库：项目通过 `pyproject.toml` 与 `uv.lock` 锁定
 `tzdata` 2026.3，standalone 构建显式包含包与数据，并校验美股与港股使用的两个 IANA
 zoneinfo 文件。该依赖只安装和打包在 QFusion 项目/Artifact 内。
+
+M2-A 已在精确提交 `a02b18e3375db91d870cef26c310d34a69aede68` 通过 Linux run
+30526872201 与 Windows run 30526872204；compiled CLI 时区探针、standalone 健康烟雾
+测试和 NSIS 构建均成功。实现已通过 PR #11 合并到 `main`。
 
 ## 4. 首批真实供应商计划
 
