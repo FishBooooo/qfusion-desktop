@@ -229,8 +229,8 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 
 - [x] 供应商技术能力与当前账户实际权限使用两份独立、冻结的 Pydantic 契约；
 - [x] 能力声明覆盖市场、资产、周期、产品特性、限流、历史起点、venue、质量与许可；
-- [x] 账户权限逐市场记录实时、延迟、EOD、历史、Mock 或不可用状态；
-- [x] bar 请求同时携带内部 UUID、供应商不透明证券 ID 和 Point-in-Time 时间边界；
+- [x] 账户权限逐市场记录数据质量，并分别声明盘前与盘后权限；
+- [x] bar 请求携带双重证券标识，分别声明盘前/盘后，并按市场时区检查历史起点；
 - [x] `ProviderAdapter` 与 `MarketDataProvider` Protocol 不暴露供应商 SDK 类型；
 - [x] Synthetic Mock 仅返回 `SYNTHETIC_MOCK`/`test-only` 的合成事实；
 - [x] Mock 按证券、事实类型、事件区间和 `available_at <= decision_time` 过滤；
