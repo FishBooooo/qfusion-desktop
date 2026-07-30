@@ -389,7 +389,7 @@ def test_bar_request_checks_capability_entitlement_and_market_quality() -> None:
     with raises(ValueError, match="does not implement bars"):
         validate_bar_request(no_bars, no_bars_access, request)
 
-    quotes_capability = make_capability(operations=(ProviderOperation.BARS, ProviderOperation.QUOTES))
+    quotes_capability = make_capability(\n        operations=(ProviderOperation.BARS, ProviderOperation.QUOTES)\n    )
     quotes_access = make_access(enabled_operations=(ProviderOperation.QUOTES,))
     with raises(PermissionError, match="does not enable bars"):
         validate_bar_request(quotes_capability, quotes_access, request)
