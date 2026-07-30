@@ -77,6 +77,7 @@
     "services/backend/tests/test_backup_restore.py",
     "services/backend/tests/test_domain_contracts.py",
     "services/backend/tests/test_domain_schemas.py",
+    "services/backend/tests/test_backend_packaging.py",
     "services/backend/tests/test_entrypoint.py",
     "services/backend/tests/test_health.py",
     "services/backend/tests/test_mock_provider.py",
