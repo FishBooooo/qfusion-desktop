@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import json
 import re
 import socket
 import time
@@ -176,9 +177,14 @@ class SecHttpTransport:
                 if 300 <= response.status_code < 400:
                     raise SecTransportError("SEC redirects are not permitted")
                 if response.status_code == 200:
+                    raw_body = response.content
+                    if len(raw_body) > self._config.max_response_bytes:
+                        raise SecPayloadError(
+                            "SEC response body exceeded the configured byte limit"
+                        )
                     try:
-                        decoded: object = response.json()
-                    except ValueError as error:
+                        decoded: object = json.loads(raw_body)
+                    except (json.JSONDecodeError, UnicodeDecodeError) as error:
                         raise SecPayloadError(
                             "SEC response body was not valid JSON"
                         ) from error
@@ -190,7 +196,11 @@ class SecHttpTransport:
                     try:
                         return SecJsonResponse(
                             payload=payload,
+                            raw_body=raw_body,
                             received_at=self._utc_now(),
+                            content_type=response.headers.get("Content-Type"),
+                            etag=response.headers.get("ETag"),
+                            last_modified=response.headers.get("Last-Modified"),
                         )
                     except ValidationError as error:
                         raise SecPayloadError(
