@@ -54,6 +54,20 @@ def test_entrypoint_can_verify_packaged_migrations_without_starting_server() -> 
     )
 
 
+def test_timezone_verifier_loads_project_data_and_restores_tzpath() -> None:
+    import zoneinfo
+
+    from qfusion.__main__ import _verify_timezone_data
+
+    original_tzpath = zoneinfo.TZPATH
+
+    assert _verify_timezone_data() == (
+        "America/New_York",
+        "Asia/Hong_Kong",
+    )
+    assert zoneinfo.TZPATH == original_tzpath
+
+
 def test_entrypoint_can_verify_packaged_timezone_data_without_server() -> None:
     from qfusion.__main__ import main
 
