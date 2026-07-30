@@ -15,14 +15,15 @@
 
 1. `ProviderCapability` 描述当前 Adapter 实现和官方产品层面的技术能力。市场数据能力
    必须通过 `MarketDataCapability` 按“市场 + 操作”声明周期、实时和盘前盘后，并通过
-   `BarHistoryWindow` 为每个 bar 周期单独声明历史起点；
+   `BarHistoryWindow` 为每个受支持 bar 周期精确声明一个历史起点；缺少窗口不能解释为
+   “无限历史”；
    其他能力继续显式声明期权、基本面、新闻、公告、流式、限流、venue、质量和许可范围；
 2. `ProviderAccessProfile` 只描述当前账户实际验证过的操作权限。市场数据质量、盘前和
    盘后权限必须按相同的“市场 + 操作”键记录。未验证、禁用和不可用状态必须显式表示，
    不能从产品能力推断账户权限。
 
 调用前必须把请求同时与两份契约按精确“市场 + 操作”键校验，bar 历史范围还必须匹配
-请求周期。`REALTIME` 只能在同一键下
+请求周期，且窗口键集合必须与受支持周期集合完全一致。`REALTIME` 只能在同一键下
 Adapter 技术支持且账户实际验证后声明；盘前和盘后请求也必须在同一键下分别通过产品能力
 与账户权限校验，不能跨市场或跨操作传播。否则使用
 `DELAYED`、`END_OF_DAY`、`HISTORICAL`、`UNAVAILABLE` 或明确的 `SYNTHETIC_MOCK`。
@@ -32,6 +33,11 @@ Adapter 技术支持且账户实际验证后声明；盘前和盘后请求也必
 `historical_start` 范围内。ticker 只作为后续 Instrument Registry 中带有效期的别名，
 不能承担跨供应商或跨公司行为
 的永久身份。
+
+为保证上述市场时区边界在没有系统 IANA 数据库的干净 Windows 上仍确定可用，后端锁定
+项目本地 `tzdata`，Nuitka standalone 必须显式包含该包及其数据，并在构建清单与烟雾
+测试中校验 `America/New_York` 和 `Asia/Hong_Kong` 两个实际使用的 zoneinfo 资产。
+不得依赖或修改宿主机时区数据库。
 
 Adapter 输出必须转换为 `DataSourceRecord`，保留来源、许可、事件时间、`available_at`、
 修订、质量、供应商版本、数据集版本和原始载荷哈希；供应商 SDK 类型不能进入 Domain、
