@@ -192,6 +192,29 @@ SEC 第一采集切片必须以无网络测试覆盖：
 可达性、许可复核、Raw Store 持久化、增量调度和 company facts 测试。CI 永远不得在
 常规测试中调用真实 SEC。
 
+
+### M2-C1 实际验收证据
+
+精确测试提交 `8619df35f457efaf134b9796e1bc92cdb3e2c835` 已通过 Linux
+[CI run 30542904326](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30542904326)
+和 Windows
+[run 30543035477](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30543035477)。
+
+- Linux：Ruff、49 个源文件的 mypy、189 项 pytest、93% 覆盖率、2 项 Vitest、Vite
+  构建和 1 项动态 Loopback E2E 全部通过；后端 PID/端口为 3650/44265，前端为
+  3660/38549，均在身份核验后停止；`uv.lock` 无漂移。
+- Windows：Rust、Ruff、mypy、189 项 pytest、93% 覆盖率、2 项 Vitest、Nuitka
+  standalone、动态健康烟雾、Tauri release 与 NSIS 全部通过。
+- Windows EXE SHA-256 为
+  `0dfddd4f7ed1de1e17db9bf29287bf2fdeac7772fd436016307529d10cc65f0e`，
+  迁移 head 为 `0002_m2b_instruments`，烟雾测试 PID/端口为 2044/56056。
+- Artifact 元数据与完整隔离说明见 [M2-C1 验收记录](m2c1-acceptance.md)。
+- 实现通过 PR #15 squash 合并到 `main` 提交
+  `ab50e28c16c4dd6b8908ee7e37fdd2ab98bc65f0`。
+
+该验收没有执行真实 SEC 网络请求；官方响应 Fixture、Raw Store/Repository 持久化、
+Scheduler 和 company facts 仍属于后续门禁。
+
 ## 后续金融测试门禁
 
 涉及行情、财务、新闻、预测或回测时，必须增加时区、交易日、截止时间、盘前盘后、复权、
