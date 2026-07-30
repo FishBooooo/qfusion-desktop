@@ -82,8 +82,8 @@ def make_provider(
     return SyntheticMockMarketDataProvider(
         selected,
         {
-            INSTRUMENT_ID: "opaque-instrument-1",
-            OTHER_INSTRUMENT_ID: "opaque-instrument-2",
+            INSTRUMENT_ID: ("opaque-instrument-1", Market.US),
+            OTHER_INSTRUMENT_ID: ("opaque-instrument-2", Market.HK),
         },
     )
 
@@ -171,7 +171,7 @@ def test_mock_provider_deep_copies_seed_and_returned_records() -> None:
         },
     )
     records = [accepted]
-    instrument_map = {INSTRUMENT_ID: "opaque-instrument-1"}
+    instrument_map = {INSTRUMENT_ID: ("opaque-instrument-1", Market.US)}
     provider = SyntheticMockMarketDataProvider(records, instrument_map)
 
     seed_metadata = accepted.payload["metadata"]
@@ -180,7 +180,7 @@ def test_mock_provider_deep_copies_seed_and_returned_records() -> None:
     assert isinstance(seed_tags, list)
     seed_tags.append("mutated-input")
     records.clear()
-    instrument_map[INSTRUMENT_ID] = "mutated"
+    instrument_map[INSTRUMENT_ID] = ("mutated", Market.HK)
 
     first = asyncio.run(provider.get_bars(make_request()))
     first_metadata = first[0].payload["metadata"]
@@ -201,7 +201,7 @@ def test_mock_provider_deep_copies_seed_and_returned_records() -> None:
 def test_mock_provider_rejects_unknown_or_mismatched_provider_instrument_id() -> None:
     provider = SyntheticMockMarketDataProvider(
         [make_record()],
-        {INSTRUMENT_ID: "opaque-instrument-1"},
+        {INSTRUMENT_ID: ("opaque-instrument-1", Market.US)},
     )
 
     with raises(ValueError, match="does not match"):
@@ -222,19 +222,32 @@ def test_mock_provider_rejects_unknown_or_mismatched_provider_instrument_id() ->
         )
 
 
+def test_mock_provider_rejects_market_mismatched_with_instrument_mapping() -> None:
+    provider = SyntheticMockMarketDataProvider(
+        [make_record()],
+        {INSTRUMENT_ID: ("opaque-instrument-1", Market.US)},
+    )
+
+    with raises(ValueError, match="market does not match"):
+        asyncio.run(provider.get_bars(make_request(market=Market.HK)))
+
+
 def test_mock_provider_rejects_invalid_instrument_maps() -> None:
     with raises(ValueError, match="must not be empty"):
         SyntheticMockMarketDataProvider([], {})
     with raises(ValueError, match="non-empty and trimmed"):
-        SyntheticMockMarketDataProvider([], {INSTRUMENT_ID: ""})
+        SyntheticMockMarketDataProvider([], {INSTRUMENT_ID: ("", Market.US)})
     with raises(ValueError, match="non-empty and trimmed"):
-        SyntheticMockMarketDataProvider([], {INSTRUMENT_ID: " untrimmed "})
+        SyntheticMockMarketDataProvider(
+            [],
+            {INSTRUMENT_ID: (" untrimmed ", Market.US)},
+        )
     with raises(ValueError, match="must be unique"):
         SyntheticMockMarketDataProvider(
             [],
             {
-                INSTRUMENT_ID: "duplicate",
-                OTHER_INSTRUMENT_ID: "duplicate",
+                INSTRUMENT_ID: ("duplicate", Market.US),
+                OTHER_INSTRUMENT_ID: ("duplicate", Market.HK),
             },
         )
 
