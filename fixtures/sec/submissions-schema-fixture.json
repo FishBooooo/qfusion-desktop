@@ -1,0 +1,79 @@
+{
+  "_fixture": {
+    "kind": "synthetic-values-official-schema",
+    "schema_reference": "https://www.sec.gov/search-filings/edgar-application-programming-interfaces",
+    "warning": "Synthetic test values; not financial evidence and not a captured live response."
+  },
+  "cik": 1,
+  "entityType": "operating",
+  "sic": "0000",
+  "sicDescription": "Synthetic fixture",
+  "name": "QFUSION SYNTHETIC SEC FIXTURE",
+  "tickers": [
+    "QFIX"
+  ],
+  "exchanges": [
+    "Nasdaq"
+  ],
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0000000001-26-000002",
+        "0000000001-26-000001"
+      ],
+      "filingDate": [
+        "2026-05-07",
+        "2026-02-20"
+      ],
+      "reportDate": [
+        "2026-03-31",
+        "2025-12-31"
+      ],
+      "acceptanceDateTime": [
+        "2026-05-07T20:15:28Z",
+        "2026-02-20T21:05:00Z"
+      ],
+      "act": [
+        "34",
+        "34"
+      ],
+      "form": [
+        "10-Q",
+        "10-K"
+      ],
+      "fileNumber": [
+        "001-00001",
+        "001-00001"
+      ],
+      "filmNumber": [
+        "26000002",
+        "26000001"
+      ],
+      "items": [
+        "",
+        ""
+      ],
+      "size": [
+        123456,
+        234567
+      ],
+      "isXBRL": [
+        1,
+        1
+      ],
+      "isInlineXBRL": [
+        1,
+        1
+      ],
+      "primaryDocument": [
+        "qfix-20260331.htm",
+        "qfix-20251231.htm"
+      ],
+      "primaryDocDescription": [
+        "Quarterly report",
+        "Annual report"
+      ]
+    },
+    "files": []
+  }
+}

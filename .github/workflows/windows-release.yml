@@ -75,6 +75,7 @@ jobs:
           name: qfusion-backend-windows-m0
           path: dist/backend/**
           if-no-files-found: error
+          retention-days: 7
 
       - name: Upload empty-shell NSIS installer
         uses: actions/upload-artifact@v6
@@ -82,3 +83,4 @@ jobs:
           name: qfusion-desktop-windows-m0
           path: apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
           if-no-files-found: error
+          retention-days: 7
