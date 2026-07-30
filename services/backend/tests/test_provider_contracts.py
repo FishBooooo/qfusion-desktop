@@ -885,4 +885,3 @@ def test_bar_request_rejects_cross_operation_account_entitlement() -> None:
 
     with raises(PermissionError, match="after-hours"):
         validate_bar_request(capability, access, request)
-
