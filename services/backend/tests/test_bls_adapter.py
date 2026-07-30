@@ -83,7 +83,7 @@ def test_persistent_storage_license_gate_runs_before_transport() -> None:
         base.model_copy(update={"usage_policy": policy}),
     )
 
-    with raises(PermissionError, match="BLOCKED_BY_PROVIDER_LICENSE.*persistent_storage"):
+    with raises(PermissionError, match=r"BLOCKED_BY_PROVIDER_LICENSE.*persistent_storage"):
         asyncio.run(provider.get_series(REQUEST))
     assert transport.requests == []
 
@@ -99,6 +99,6 @@ def test_model_processing_license_gate_runs_before_transport() -> None:
         base.model_copy(update={"usage_policy": policy}),
     )
 
-    with raises(PermissionError, match="BLOCKED_BY_PROVIDER_LICENSE.*model_processing"):
+    with raises(PermissionError, match=r"BLOCKED_BY_PROVIDER_LICENSE.*model_processing"):
         asyncio.run(provider.get_series(REQUEST))
     assert transport.requests == []
