@@ -193,6 +193,8 @@ def test_mock_provider_rejects_invalid_instrument_maps() -> None:
     with raises(ValueError, match="must not be empty"):
         SyntheticMockMarketDataProvider([], {})
     with raises(ValueError, match="non-empty and trimmed"):
+        SyntheticMockMarketDataProvider([], {INSTRUMENT_ID: ""})
+    with raises(ValueError, match="non-empty and trimmed"):
         SyntheticMockMarketDataProvider([], {INSTRUMENT_ID: " untrimmed "})
     with raises(ValueError, match="must be unique"):
         SyntheticMockMarketDataProvider(
