@@ -119,6 +119,10 @@ def test_capability_canonicalizes_collections_and_rate_limits() -> None:
                         interval=DataInterval.DAY_1,
                         historical_start=date(2010, 1, 1),
                     ),
+                    BarHistoryWindow(
+                        interval=DataInterval.MINUTE_1,
+                        historical_start=date(2025, 1, 1),
+                    ),
                 ),
             ),
         ),
@@ -153,7 +157,7 @@ def test_capability_canonicalizes_collections_and_rate_limits() -> None:
     )
     assert tuple(
         item.interval for item in capability.market_data_capabilities[0].bar_history
-    ) == (DataInterval.DAY_1,)
+    ) == (DataInterval.MINUTE_1, DataInterval.DAY_1)
     assert capability.operations == (ProviderOperation.BARS, ProviderOperation.QUOTES)
     assert tuple(item.operation for item in capability.rate_limit) == (
         ProviderOperation.BARS,
