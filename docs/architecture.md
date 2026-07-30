@@ -1,6 +1,6 @@
 # QFusion Desktop 架构基线
 
-状态：M2-A 已验收；进入 M2-B Instrument Registry
+状态：M2-B Instrument Registry 候选
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -112,6 +112,12 @@ M2-A 已在 Provider 层新增 `ProviderCapability`、`ProviderAccessProfile`、
 `DataSourceRecord`。Synthetic Mock 不访问网络或凭证，完整决策见
 [ADR-0011](adr/0011-provider-capability-entitlement.md)。
 
+M2-B 候选把内部永久 UUID、ticker 历史和供应商不透明 ID 映射分离。所有外部标识映射使用
+半开有效区间、独立 `available_at` 和显式 `effective_at <= decision_time` 查询；SQLite
+物理过滤后，Repository 再次执行 Domain Point-in-Time 守卫。Provider 只能消费已解析的
+`instrument_id + provider_instrument_id + market`，不能自行把 ticker 升格为主键。完整决策见
+[ADR-0012](adr/0012-point-in-time-instrument-registry.md)。
+
 ## 5. 模型数据流
 
 ```text
@@ -142,7 +148,11 @@ M1-D 已补齐上图从 Point-in-Time 事实到持久化 `AnalysisSnapshot` 的�
 - 系统采用单写入器原则；并发读取可以存在，并发任务不能直接写同一个 DuckDB 文件。
 - 用户数据位于 `%LOCALAPPDATA%\QFusion\`，不写入安装目录。
 
-上述仍是 ADR-0001 确定的目标映射。M1-B 只新增：
+上述仍是 ADR-0001 确定的目标映射。M2-B 在同一 SQLite 元数据边界新增
+`instruments`、`instrument_ticker_aliases` 和 `provider_instrument_mappings`；复合外键
+固定市场归属，触发器拒绝重叠有效期，不提供覆盖或删除 Repository 方法。
+
+M1-B 只新增：
 
 - SQLite `analysis_snapshots` 元数据表；
 - SQLite `analysis_snapshot_facts` 跨存储 fact ID 引用表；
@@ -220,7 +230,9 @@ M1-A 至 M1-E 均已通过 Linux 与 Windows 托管验证：
   与账户权限不会跨市场或跨操作形成虚假组合、不同 bar 周期不会共享或缺省历史起点，
   无系统 IANA 数据库时仍可解析 US/HK 市场时区，且 Adapter 不向调用方暴露可变的内部
   合成记录；
-- 尚未实现真实供应商连接、Instrument Registry、模型、订单或真实金融调用。
+- M2-B 候选已实现永久 UUID、ticker/供应商 ID 双时间映射、SQLite 迁移与 Repository，
+  但尚未经过 Linux/Windows 托管门禁；
+- 尚未实现真实供应商连接、证券状态历史、公司行为、模型、订单或真实金融调用。
 
 M2-A 已在精确提交 `a02b18e3375db91d870cef26c310d34a69aede68` 通过 Linux 与
 Windows 托管门禁，并通过 PR #11 squash 合并为

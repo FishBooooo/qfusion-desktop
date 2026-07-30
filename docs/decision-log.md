@@ -17,6 +17,7 @@
 | [0009](adr/0009-deterministic-snapshot-construction.md) | 快照使用显式 fact policy、双重 Point-in-Time 守卫和可复现内容指纹 | Accepted | 2026-07-30 |
 | [0010](adr/0010-offline-audited-backup-restore.md) | Local Lite 使用离线审计归档并只恢复到不存在的新数据根 | Accepted | 2026-07-30 |
 | [0011](adr/0011-provider-capability-entitlement.md) | 供应商能力与账户权限按市场和操作分离，bar 历史范围按周期声明 | Accepted | 2026-07-30 |
+| [0012](adr/0012-point-in-time-instrument-registry.md) | 永久证券 UUID 与 ticker/供应商 ID 使用双时间边界和非重叠有效期映射 | Accepted | 2026-07-30 |
 
 ## 状态定义
 

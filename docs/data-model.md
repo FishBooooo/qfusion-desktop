@@ -1,6 +1,6 @@
 # 数据模型基线
 
-状态：M1 本地存储与数据契约已正式验收
+状态：M1 已验收；M2-B Instrument Registry 候选
 最后更新：2026-07-30
 
 ## 1. 标识原则
@@ -203,3 +203,34 @@ M1-E 不把 `.tmp`、WAL、日志或数据根外文件写入归档。恢复目�
 目标检查与改名之间制造路径的竞态，调用方必须保证数据根由 QFusion 独占。当前仍未实现
 跨存储在线写入屏障、备份加密、恢复后的活动数据根切换、供应商连接、模型、订单或真实
 金融数据。
+
+
+## 11. M2-B Instrument Registry
+
+M2-B 将永久身份与外部代码拆成三类 Domain 契约：
+
+| 契约 | 永久/外部字段 | 时间边界 |
+| --- | --- | --- |
+| `Instrument` | UUID `instrument_id`、市场、资产类型、显示名称 | `registered_at <= decision_time` |
+| `TickerAlias` | UUID `alias_id`、`instrument_id`、市场 ticker | `[valid_from, valid_to)` 与 `available_at` |
+| `ProviderInstrumentMapping` | UUID `mapping_id`、供应商名称和大小写保留的不透明 ID | `[valid_from, valid_to)` 与 `available_at` |
+
+ticker 只在边界规范为大写，供应商名称规范为 casefold；供应商不透明 ID 保持内部大小写与
+内容。所有解析查询同时携带 `effective_at` 和 `decision_time`，并执行：
+
+```text
+valid_from <= effective_at < valid_to  （valid_to 为空时无上界）
+available_at <= decision_time
+effective_at <= decision_time
+```
+
+SQLite 新增 `instruments`、`instrument_ticker_aliases` 和
+`provider_instrument_mappings`。映射通过 `(instrument_id, market)` 复合外键阻止跨市场
+误绑；触发器拒绝同一 ticker 的重叠有效期、同一供应商不透明 ID 的重叠有效期，以及同一
+证券在同一供应商中同时拥有多个有效 ID。相邻半开区间允许 ticker/供应商代码变化，旧 ticker
+结束后也可由另一永久证券复用。
+
+Repository 先在 SQL 中应用有效期与知识时间条件，恢复 Pydantic 对象后再次执行相同守卫。
+M2-B 不实现证券状态历史、公司行为、发行人关系、ISIN/FIGI 或事后映射纠错；这些不能通过
+覆盖既有记录临时解决。完整决策见
+[ADR-0012](adr/0012-point-in-time-instrument-registry.md)。

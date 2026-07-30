@@ -101,14 +101,20 @@ def test_migration_is_idempotent_reversible_and_matches_orm(tmp_path: Path) -> N
     engine = create_sqlite_engine((tmp_path / "migration.sqlite3").resolve())
     try:
         assert current_database_revision(engine) is None
-        assert verify_migration_assets() == ("0001_m1b_snapshots",)
+        assert verify_migration_assets() == ("0002_m2b_instruments",)
 
         upgrade_database(engine)
         upgrade_database(engine)
 
-        assert current_database_revision(engine) == "0001_m1b_snapshots"
+        assert current_database_revision(engine) == "0002_m2b_instruments"
         inspector = inspect(engine)
-        expected_tables = {"analysis_snapshots", "analysis_snapshot_facts"}
+        expected_tables = {
+            "analysis_snapshots",
+            "analysis_snapshot_facts",
+            "instruments",
+            "instrument_ticker_aliases",
+            "provider_instrument_mappings",
+        }
         assert expected_tables <= set(inspector.get_table_names())
 
         for table_name in expected_tables:
@@ -126,7 +132,7 @@ def test_migration_is_idempotent_reversible_and_matches_orm(tmp_path: Path) -> N
         assert expected_tables.isdisjoint(downgraded_tables)
 
         upgrade_database(engine)
-        assert current_database_revision(engine) == "0001_m1b_snapshots"
+        assert current_database_revision(engine) == "0002_m2b_instruments"
     finally:
         engine.dispose()
 

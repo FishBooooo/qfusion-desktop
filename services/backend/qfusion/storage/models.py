@@ -5,7 +5,16 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import JSON, CheckConstraint, ForeignKey, Index, String, Uuid
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    String,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from qfusion.storage.types import UTCDateTime
@@ -13,6 +22,142 @@ from qfusion.storage.types import UTCDateTime
 
 class Base(DeclarativeBase):
     """Declarative metadata root used by migrations and drift tests."""
+
+
+class InstrumentRow(Base):
+    """Permanent internal instrument identity."""
+
+    __tablename__ = "instruments"
+    __table_args__ = (
+        CheckConstraint("market IN ('US', 'HK')", name="ck_instruments_market"),
+        CheckConstraint(
+            "asset_type IN ('stock', 'adr', 'etf', 'sector_etf')",
+            name="ck_instruments_asset_type",
+        ),
+        CheckConstraint(
+            "length(display_name) >= 1 AND length(display_name) <= 256",
+            name="ck_instruments_display_name_length",
+        ),
+        UniqueConstraint(
+            "instrument_id",
+            "market",
+            name="uq_instruments_identity_market",
+        ),
+    )
+
+    instrument_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    schema_version: Mapped[str] = mapped_column(String(16), nullable=False)
+    market: Mapped[str] = mapped_column(String(8), nullable=False)
+    asset_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    source: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_record_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    revision_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    registered_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+
+class TickerAliasRow(Base):
+    """Point-in-Time ticker alias for one permanent instrument."""
+
+    __tablename__ = "instrument_ticker_aliases"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("instrument_id", "market"),
+            ("instruments.instrument_id", "instruments.market"),
+            ondelete="RESTRICT",
+            name="fk_ticker_alias_instrument_market",
+        ),
+        CheckConstraint(
+            "valid_to IS NULL OR valid_from < valid_to",
+            name="ck_ticker_alias_valid_range",
+        ),
+        CheckConstraint(
+            "length(ticker) >= 1 AND length(ticker) <= 32",
+            name="ck_ticker_alias_ticker_length",
+        ),
+        CheckConstraint("ticker = upper(ticker)", name="ck_ticker_alias_uppercase"),
+        Index(
+            "ix_ticker_alias_lookup",
+            "market",
+            "ticker",
+            "valid_from",
+            "valid_to",
+            "available_at",
+        ),
+        Index("ix_ticker_alias_instrument", "instrument_id", "market"),
+    )
+
+    alias_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    schema_version: Mapped[str] = mapped_column(String(16), nullable=False)
+    instrument_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    market: Mapped[str] = mapped_column(String(8), nullable=False)
+    ticker: Mapped[str] = mapped_column(String(32), nullable=False)
+    valid_from: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    valid_to: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    available_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    source: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_record_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    source_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    revision_id: Mapped[str] = mapped_column(String(128), nullable=False)
+
+
+class ProviderInstrumentMappingRow(Base):
+    """Point-in-Time opaque provider identifier mapping."""
+
+    __tablename__ = "provider_instrument_mappings"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("instrument_id", "market"),
+            ("instruments.instrument_id", "instruments.market"),
+            ondelete="RESTRICT",
+            name="fk_provider_mapping_instrument_market",
+        ),
+        CheckConstraint(
+            "valid_to IS NULL OR valid_from < valid_to",
+            name="ck_provider_mapping_valid_range",
+        ),
+        CheckConstraint(
+            "length(provider_name) >= 1 AND length(provider_name) <= 128",
+            name="ck_provider_mapping_name_length",
+        ),
+        CheckConstraint(
+            "length(provider_instrument_id) >= 1 "
+            "AND length(provider_instrument_id) <= 256",
+            name="ck_provider_mapping_identifier_length",
+        ),
+        Index(
+            "ix_provider_identifier_lookup",
+            "provider_name",
+            "market",
+            "provider_instrument_id",
+            "valid_from",
+            "valid_to",
+            "available_at",
+        ),
+        Index(
+            "ix_provider_mapping_lookup",
+            "instrument_id",
+            "provider_name",
+            "market",
+            "valid_from",
+            "valid_to",
+            "available_at",
+        ),
+    )
+
+    mapping_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    schema_version: Mapped[str] = mapped_column(String(16), nullable=False)
+    instrument_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    market: Mapped[str] = mapped_column(String(8), nullable=False)
+    provider_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    provider_instrument_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    provider_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    valid_from: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    valid_to: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    available_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+    source_record_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    revision_id: Mapped[str] = mapped_column(String(128), nullable=False)
 
 
 class AnalysisSnapshotRow(Base):

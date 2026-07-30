@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M2-A 已正式验收；进入 M2-B Instrument Registry
+状态：M2-B Instrument Registry 候选等待跨平台门禁
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -276,9 +276,21 @@ Windows 证据来自
 
 ### M2-B：Instrument Registry 与有效期映射
 
-下一切片只建立内部永久证券标识、带有效期的 ticker/供应商不透明标识映射、
-Repository 与迁移边界及 Mock 合约测试；不访问真实供应商、不注入凭证，也不把 ticker
-作为永久主键。完成并通过跨平台门禁后才进入 SEC/FRED 等真实 Adapter。
+候选范围：
+
+- [x] 内部永久 UUID `instrument_id` 与静态市场/资产类型身份；
+- [x] ticker 大写规范化、供应商名称 casefold 和大小写保留的不透明供应商 ID；
+- [x] `[valid_from, valid_to)` 有效期、`available_at` 与显式决策时间查询；
+- [x] Domain Repository Protocol 与查询后第二重 Point-in-Time 守卫；
+- [x] SQLite 三表、复合市场外键、非重叠有效期触发器和可逆迁移；
+- [x] ticker 变化、复用、供应商 ID 变化、冲突、损坏和 Synthetic Mock 集成测试；
+- [x] ADR-0012、数据模型、架构与测试文档；
+- [ ] Linux Runner 的 Lint、mypy、pytest、前端回归、构建与动态 E2E；
+- [ ] Windows Runner 的迁移资产、Rust/Python/React、standalone Sidecar 与 NSIS 回归。
+
+M2-B 不新增依赖、不访问真实供应商、不注入凭证，也不把 ticker 作为永久主键。证券状态
+历史、公司行为、ISIN/FIGI 和真实 Adapter 仍不在本切片。完成跨平台门禁并合并后，才进入
+SEC/FRED 等真实 Adapter。
 
 ## M3：因子和特征系统
 

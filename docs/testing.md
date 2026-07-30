@@ -129,6 +129,23 @@ M2-A 精确提交 `a02b18e3375db91d870cef26c310d34a69aede68` 已通过 Linux run
 生产构建与 1 项动态 Loopback E2E；Windows 运行 Rust、Python、React 回归、Nuitka
 standalone compiled timezone/health smoke 与 NSIS 构建。9 个审查线程均已解决。
 
+## M2-B Instrument Registry 测试门禁
+
+Registry 单元与集成测试必须覆盖：
+
+- 永久 UUID 主键，确认 ticker 不出现在 `instruments` 或 ticker 表主键；
+- UTC 规范化、冻结契约、ticker 大写、供应商名称 casefold 和供应商 ID 大小写保留；
+- 半开有效期边界、`effective_at <= decision_time` 和
+  `available_at <= decision_time`；
+- ticker 变化、间隔、复用，以及同一供应商 ID 与同一证券映射的双向重叠拒绝；
+- 未知证券、市场错配、映射早于证券注册和持久化 Domain 损坏；
+- SQLite 从 base 到单一 head 的升级、幂等、降级、再升级、ORM 列漂移和触发器清单；
+- Registry 解析出的双重标识驱动 Synthetic Mock bar 请求，全程不访问网络或凭证；
+- 既有快照、分析仓库、备份恢复、Provider、前端、standalone 和 NSIS 回归。
+
+M2-B 不执行真实供应商网络、许可或凭证测试；这些门禁必须在每个真实 Adapter 切片中使用
+官方响应 Fixture 单独完成。
+
 ## 后续金融测试门禁
 
 涉及行情、财务、新闻、预测或回测时，必须增加时区、交易日、截止时间、盘前盘后、复权、
