@@ -2,7 +2,7 @@
   "forbidden_paths": [
     "PROJECT-TASKBOOK.md"
   ],
-  "milestone": "M1",
+  "milestone": "M2",
   "required_directories": [
     ".github/workflows",
     "apps/desktop/src",
@@ -38,6 +38,7 @@
     "docs/deployment-windows.md",
     "docs/roadmap.md",
     "docs/decision-log.md",
+    "docs/m1-acceptance.md",
     "docs/workspace-validation.md",
     "docs/adr/0001-local-lite-storage.md",
     "docs/adr/0002-tauri-fastapi-sidecar.md",

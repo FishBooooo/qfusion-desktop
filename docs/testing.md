@@ -1,6 +1,6 @@
 # 测试策略基线
 
-最后更新：2026-07-29
+最后更新：2026-07-30
 
 ## M0 测试层
 
@@ -79,6 +79,25 @@ Windows：
 
 最新必需运行没有失败测试。修复过程中的两次 Windows 失败运行正确阻止了后续打包和上传，
 证明原生命令非零状态不再被 PowerShell 吞掉。
+
+## M1 实际证据
+
+M1-A 至 M1-E 已分别通过 Linux 与 Windows 托管门禁。最终三个集成切片：
+
+- M1-C：Linux [30490564432](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30490564432)，Windows [30490564436](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30490564436)；
+- M1-D：Linux [30497685427](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30497685427)，Windows [30497685371](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30497685371)；
+- M1-E：Linux [30498825886](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30498825886)，Windows [30498825891](https://github.com/FishBooooo/qfusion-desktop/actions/runs/30498825891)。
+
+精确 M1-E 头部实际通过 79 项 pytest、91.52% 总覆盖率、2 项 Vitest、Vite、动态
+Loopback Playwright、Rust 检查、Nuitka standalone 健康烟雾和 NSIS。Windows 后端
+Artifact 摘要为
+`sha256:ddf5fb910b9401be352af8c8f3d5e9f18d77dc8f7c7d1edfeebf793903a4e9c1`，
+桌面 Artifact 摘要为
+`sha256:7f14d969fb9d25c4423bee85f8a2f099b84619a0c6961f235eb98a791ef35bee`。
+
+M1 测试覆盖 Point-in-Time 时间边界、迁移、Repository 往返、单写入、失败回滚、Parquet
+与 Raw Store 完整性、可复现快照、备份恢复、恶意归档和 Windows 路径可移植性。完整矩阵、
+历史运行和限制见 [M1 正式验收](m1-acceptance.md)。
 
 ## 后续金融测试门禁
 
