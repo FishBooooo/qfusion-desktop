@@ -65,6 +65,10 @@ class Instrument(DomainContract):
     market: Market
     asset_type: InstrumentAssetType
     display_name: DisplayName
+    source: NonEmptyText
+    source_record_id: NonEmptyText
+    source_version: NonEmptyText
+    revision_id: NonEmptyText
     registered_at: datetime
 
     @field_validator("registered_at")
@@ -121,6 +125,7 @@ class TickerAlias(EffectiveIdentifier):
     alias_id: UUID
     ticker: TickerText
     source: NonEmptyText
+    source_version: NonEmptyText
 
     @field_validator("ticker")
     @classmethod
