@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import or_, select
@@ -319,7 +320,7 @@ class SqlAlchemyInstrumentRegistryRepository:
         session: Session,
         instrument_id: UUID,
         market: Market,
-        mapping_available_at: object,
+        mapping_available_at: datetime,
     ) -> Instrument:
         row = session.get(InstrumentRow, instrument_id)
         if row is None:
@@ -331,8 +332,6 @@ class SqlAlchemyInstrumentRegistryRepository:
             raise InstrumentRegistryIntegrityError(
                 f"identifier market differs from instrument: {instrument_id}"
             )
-        if not hasattr(mapping_available_at, "tzinfo"):
-            raise InstrumentRegistryIntegrityError("identifier available_at is invalid")
         if instrument.registered_at > mapping_available_at:
             raise InstrumentRegistryIntegrityError(
                 f"identifier predates instrument registration: {instrument_id}"
