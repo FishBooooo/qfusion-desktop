@@ -16,15 +16,17 @@
 1. `ProviderCapability` 描述当前 Adapter 实现和官方产品层面的技术能力，包括市场、资产、
    周期、实时/盘前盘后、期权、基本面、新闻、公告、流式能力、限流、历史起点、venue、
    质量和许可范围；
-2. `ProviderAccessProfile` 只描述当前账户实际验证过的操作权限及逐市场数据质量。未验证、
-   禁用和不可用状态必须显式表示，不能从产品能力推断账户权限。
+2. `ProviderAccessProfile` 只描述当前账户实际验证过的操作权限，以及逐市场数据质量、
+   盘前和盘后权限。未验证、禁用和不可用状态必须显式表示，不能从产品能力推断账户权限。
 
 调用前必须把请求同时与两份契约校验。`REALTIME` 只能在 Adapter 技术支持且账户实际验证
-后声明；否则使用 `DELAYED`、`END_OF_DAY`、`HISTORICAL`、`UNAVAILABLE` 或明确的
-`SYNTHETIC_MOCK`。
+后声明；盘前和盘后请求也必须分别通过产品能力与逐市场账户权限校验。否则使用
+`DELAYED`、`END_OF_DAY`、`HISTORICAL`、`UNAVAILABLE` 或明确的 `SYNTHETIC_MOCK`。
 
-市场数据请求同时携带内部永久 `instrument_id` 和供应商不透明标识。ticker 只作为后续
-Instrument Registry 中带有效期的别名，不能承担跨供应商或跨公司行为的永久身份。
+市场数据请求同时携带内部永久 `instrument_id` 和供应商不透明标识，并分别声明是否包含
+盘前或盘后时段。请求起点必须位于供应商按市场时区解释的 `historical_start` 范围内。
+ticker 只作为后续 Instrument Registry 中带有效期的别名，不能承担跨供应商或跨公司行为
+的永久身份。
 
 Adapter 输出必须转换为 `DataSourceRecord`，保留来源、许可、事件时间、`available_at`、
 修订、质量、供应商版本、数据集版本和原始载荷哈希；供应商 SDK 类型不能进入 Domain、
