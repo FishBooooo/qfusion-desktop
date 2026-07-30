@@ -66,7 +66,7 @@ def test_adapter_uses_registry_cik_and_returns_point_in_time_records() -> None:
     assert transport.ciks == ["0000000001"]
     assert len(records) == 2
     assert all(record.instrument_id == INSTRUMENT_ID for record in records)
-    assert all(record.available_at <= request().decision_time for record in records)
+    assert all(record.available_at == RECEIVED_AT for record in records)
 
 
 def test_adapter_returns_observed_facts_for_repository_point_in_time_gate() -> None:
