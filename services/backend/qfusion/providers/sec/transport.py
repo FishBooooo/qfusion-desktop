@@ -42,31 +42,6 @@ class HostResolver(Protocol):
 class SecJsonTransport(Protocol):
     """Minimal transport consumed by the SEC Adapter and replaced by CI fakes."""
 
-    async def _read_bounded_body(self, response: httpx.Response) -> bytes:
-        declared_length = response.headers.get("Content-Length")
-        if declared_length is not None:
-            try:
-                parsed_length = int(declared_length)
-            except ValueError as error:
-                raise SecPayloadError(
-                    "SEC response Content-Length was invalid"
-                ) from error
-            if parsed_length < 0:
-                raise SecPayloadError("SEC response Content-Length was negative")
-            if parsed_length > self._config.max_response_bytes:
-                raise SecPayloadError(
-                    "SEC response body exceeded the configured byte limit"
-                )
-
-        body = bytearray()
-        async for chunk in response.aiter_bytes():
-            if len(body) + len(chunk) > self._config.max_response_bytes:
-                raise SecPayloadError(
-                    "SEC response body exceeded the configured byte limit"
-                )
-            body.extend(chunk)
-        return bytes(body)
-
     async def get_submissions(self, cik: str) -> SecJsonResponse:
         """Fetch one submissions JSON object for a validated ten-digit CIK."""
         ...
@@ -174,6 +149,31 @@ class SecHttpTransport:
                 return float(min(parsed, self._config.max_retry_delay_seconds))
         exponential = 0.25 * (2**attempt)
         return float(min(exponential, self._config.max_retry_delay_seconds))
+
+    async def _read_bounded_body(self, response: httpx.Response) -> bytes:
+        declared_length = response.headers.get("Content-Length")
+        if declared_length is not None:
+            try:
+                parsed_length = int(declared_length)
+            except ValueError as error:
+                raise SecPayloadError(
+                    "SEC response Content-Length was invalid"
+                ) from error
+            if parsed_length < 0:
+                raise SecPayloadError("SEC response Content-Length was negative")
+            if parsed_length > self._config.max_response_bytes:
+                raise SecPayloadError(
+                    "SEC response body exceeded the configured byte limit"
+                )
+
+        body = bytearray()
+        async for chunk in response.aiter_bytes():
+            if len(body) + len(chunk) > self._config.max_response_bytes:
+                raise SecPayloadError(
+                    "SEC response body exceeded the configured byte limit"
+                )
+            body.extend(chunk)
+        return bytes(body)
 
     async def get_submissions(self, cik: str) -> SecJsonResponse:
         """Fetch a fixed submissions path; redirects and non-public DNS fail closed."""
