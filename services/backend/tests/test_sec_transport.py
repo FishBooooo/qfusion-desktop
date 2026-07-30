@@ -115,6 +115,7 @@ def test_success_uses_fixed_host_path_declared_headers_and_receipt_time() -> Non
     )
     assert requests[0].headers["User-Agent"] == "QFusion CI ci@example.com"
     assert requests[0].headers["Accept"] == "application/json"
+    assert requests[0].headers["Accept-Encoding"] == "identity"
 
 
 def test_private_dns_blocks_before_http_request() -> None:
