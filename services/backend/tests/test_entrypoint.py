@@ -53,6 +53,7 @@ def test_entrypoint_can_verify_packaged_migrations_without_starting_server() -> 
         == "QFUSION_MIGRATION_ASSETS_OK heads=0001_m1b_snapshots\n"
     )
 
+
 def test_entrypoint_can_verify_packaged_timezone_data_without_server() -> None:
     from qfusion.__main__ import main
 
