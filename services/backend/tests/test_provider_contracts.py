@@ -14,6 +14,7 @@ from qfusion.providers import (
     DataDeliveryQuality,
     DataInterval,
     MarketDataAccess,
+    MarketDataCapability,
     ProviderAccessProfile,
     ProviderAccessStatus,
     ProviderBarRequest,
@@ -34,17 +35,20 @@ def make_capability(**overrides: object) -> ProviderCapability:
         "provider_version": "1.0.0",
         "supported_markets": (Market.US,),
         "supported_asset_types": (AssetType.STOCK,),
-        "supported_intervals": (DataInterval.DAY_1,),
-        "supports_realtime": False,
-        "supports_premarket": False,
-        "supports_afterhours": False,
+        "market_data_capabilities": (
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.DAY_1,),
+                historical_start=date(2020, 1, 1),
+            ),
+        ),
         "supports_options": False,
         "supports_fundamentals": False,
         "supports_news": False,
         "supports_filings": False,
         "supports_streaming": False,
         "rate_limit": (),
-        "historical_start": date(2020, 1, 1),
         "venue_scope": "US",
         "quality_level": "test",
         "license_scope": "test-only",
@@ -65,6 +69,7 @@ def make_access(**overrides: object) -> ProviderAccessProfile:
         "market_data_quality": (
             MarketDataAccess(
                 market=Market.US,
+                operation=ProviderOperation.BARS,
                 data_quality=DataDeliveryQuality.HISTORICAL,
             ),
         ),
@@ -94,7 +99,18 @@ def test_capability_canonicalizes_collections_and_rate_limits() -> None:
     capability = make_capability(
         supported_markets=(Market.US, Market.HK),
         supported_asset_types=(AssetType.STOCK, AssetType.ADR),
-        supported_intervals=(DataInterval.MINUTE_1, DataInterval.DAY_1),
+        market_data_capabilities=(
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.QUOTES,
+            ),
+            MarketDataCapability(
+                market=Market.HK,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.MINUTE_1, DataInterval.DAY_1),
+                historical_start=date(2010, 1, 1),
+            ),
+        ),
         operations=(ProviderOperation.QUOTES, ProviderOperation.BARS),
         rate_limit=(
             RateLimitPolicy(
@@ -113,7 +129,17 @@ def test_capability_canonicalizes_collections_and_rate_limits() -> None:
 
     assert capability.supported_markets == (Market.HK, Market.US)
     assert capability.supported_asset_types == (AssetType.ADR, AssetType.STOCK)
-    assert capability.supported_intervals == (DataInterval.MINUTE_1, DataInterval.DAY_1)
+    assert tuple(
+        (item.market, item.operation)
+        for item in capability.market_data_capabilities
+    ) == (
+        (Market.HK, ProviderOperation.BARS),
+        (Market.US, ProviderOperation.QUOTES),
+    )
+    assert capability.market_data_capabilities[0].supported_intervals == (
+        DataInterval.MINUTE_1,
+        DataInterval.DAY_1,
+    )
     assert capability.operations == (ProviderOperation.BARS, ProviderOperation.QUOTES)
     assert tuple(item.operation for item in capability.rate_limit) == (
         ProviderOperation.BARS,
@@ -131,11 +157,6 @@ def test_capability_canonicalizes_collections_and_rate_limits() -> None:
             "supported_asset_types",
             (AssetType.STOCK, AssetType.STOCK),
             "supported_asset_types must be unique",
-        ),
-        (
-            "supported_intervals",
-            (DataInterval.DAY_1, DataInterval.DAY_1),
-            "supported_intervals must be unique",
         ),
         ("operations", (), "operations must not be empty"),
         (
@@ -172,30 +193,65 @@ def test_capability_rejects_duplicate_or_orphan_rate_limits() -> None:
         make_capability(rate_limit=(orphan,))
 
 
-def test_capability_rejects_bars_without_intervals_and_orphan_extended_hours() -> None:
+def test_scoped_market_data_capability_rejects_invalid_combinations() -> None:
     with raises(ValidationError, match="bars capability requires"):
-        make_capability(supported_intervals=())
-
-    with raises(ValidationError, match="extended-hours"):
-        make_capability(
-            operations=(ProviderOperation.FILINGS,),
-            supported_intervals=(),
-            supports_filings=True,
-            supports_premarket=True,
+        MarketDataCapability(
+            market=Market.US,
+            operation=ProviderOperation.BARS,
         )
 
-    with raises(ValidationError, match="realtime"):
+    with raises(ValidationError, match="only bars"):
+        MarketDataCapability(
+            market=Market.US,
+            operation=ProviderOperation.QUOTES,
+            supported_intervals=(DataInterval.DAY_1,),
+        )
+
+    with raises(ValidationError, match="market-data operation"):
+        MarketDataCapability(
+            market=Market.US,
+            operation=ProviderOperation.FILINGS,
+        )
+
+
+def test_capability_rejects_duplicate_missing_or_unsupported_scoped_entries() -> None:
+    bars = MarketDataCapability(
+        market=Market.US,
+        operation=ProviderOperation.BARS,
+        supported_intervals=(DataInterval.DAY_1,),
+    )
+    with raises(ValidationError, match="at most one entry"):
+        make_capability(market_data_capabilities=(bars, bars))
+
+    with raises(ValidationError, match="cover every declared"):
+        make_capability(market_data_capabilities=())
+
+    with raises(ValidationError, match="unsupported market"):
         make_capability(
-            operations=(ProviderOperation.FILINGS,),
-            supported_intervals=(),
-            supports_filings=True,
-            supports_realtime=True,
+            market_data_capabilities=(
+                MarketDataCapability(
+                    market=Market.HK,
+                    operation=ProviderOperation.BARS,
+                    supported_intervals=(DataInterval.DAY_1,),
+                ),
+            ),
         )
 
 
 def test_capability_accepts_coherent_feature_and_realtime_declarations() -> None:
     capability = make_capability(
-        supports_realtime=True,
+        market_data_capabilities=(
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.DAY_1,),
+            ),
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.STREAM_QUOTES,
+                supports_realtime=True,
+            ),
+        ),
         supports_options=True,
         supports_fundamentals=True,
         supports_news=True,
@@ -214,7 +270,10 @@ def test_capability_accepts_coherent_feature_and_realtime_declarations() -> None
         ),
     )
 
-    assert capability.supports_realtime
+    assert any(
+        item.supports_realtime
+        for item in capability.market_data_capabilities
+    )
     assert capability.supports_options
     assert capability.supports_fundamentals
     assert capability.supports_news
@@ -256,6 +315,7 @@ def test_access_profile_normalizes_timestamp_collections_and_notes() -> None:
             ),
             MarketDataAccess(
                 market=Market.HK,
+                operation=ProviderOperation.BARS,
                 data_quality=DataDeliveryQuality.HISTORICAL,
             ),
         ),
@@ -281,6 +341,7 @@ def test_access_profile_normalizes_timestamp_collections_and_notes() -> None:
             (
                 MarketDataAccess(
                     market=Market.US,
+                    operation=ProviderOperation.BARS,
                     data_quality=DataDeliveryQuality.HISTORICAL,
                 ),
                 MarketDataAccess(
@@ -288,7 +349,7 @@ def test_access_profile_normalizes_timestamp_collections_and_notes() -> None:
                     data_quality=DataDeliveryQuality.DELAYED,
                 ),
             ),
-            "at most one entry per market",
+            "per market and operation",
         ),
         ("notes", ("same", "same"), "notes must be unique"),
     ],
@@ -377,7 +438,16 @@ def test_provider_access_validates_identity_operations_markets_and_quality() -> 
 
 
 def test_provider_access_allows_realtime_only_when_capability_supports_it() -> None:
-    capability = make_capability(supports_realtime=True)
+    capability = make_capability(
+        market_data_capabilities=(
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.DAY_1,),
+                supports_realtime=True,
+            ),
+        ),
+    )
     access = make_access(
         market_data_quality=(
             MarketDataAccess(
@@ -415,6 +485,7 @@ def test_unavailable_market_rejects_extended_hours_entitlement(field: str) -> No
         MarketDataAccess.model_validate(
             {
                 "market": Market.US,
+                "operation": ProviderOperation.BARS,
                 "data_quality": DataDeliveryQuality.UNAVAILABLE,
                 field: True,
             }
@@ -447,16 +518,9 @@ def test_provider_access_rejects_unsupported_extended_hours_claims() -> None:
         validate_provider_access(make_capability(), afterhours_access)
 
 
-def test_provider_access_requires_market_data_operation_for_quality_claim() -> None:
-    capability = make_capability(
-        operations=(ProviderOperation.NEWS,),
-        supported_intervals=(),
-        supports_news=True,
-    )
-    access = make_access(enabled_operations=(ProviderOperation.NEWS,))
-
-    with raises(ValueError, match="market-data operation"):
-        validate_provider_access(capability, access)
+def test_access_profile_requires_available_operation_to_be_enabled() -> None:
+    with raises(ValidationError, match="operation to be enabled"):
+        make_access(enabled_operations=(ProviderOperation.NEWS,))
 
 
 def test_bar_request_normalizes_times_and_derives_fact_type() -> None:
@@ -504,9 +568,30 @@ def test_bar_request_checks_capability_entitlement_and_market_quality() -> None:
         validate_bar_request(no_bars, no_bars_access, request)
 
     quotes_capability = make_capability(
-        operations=(ProviderOperation.BARS, ProviderOperation.QUOTES)
+        market_data_capabilities=(
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.DAY_1,),
+                historical_start=date(2020, 1, 1),
+            ),
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.QUOTES,
+            ),
+        ),
+        operations=(ProviderOperation.BARS, ProviderOperation.QUOTES),
     )
-    quotes_access = make_access(enabled_operations=(ProviderOperation.QUOTES,))
+    quotes_access = make_access(
+        enabled_operations=(ProviderOperation.QUOTES,),
+        market_data_quality=(
+            MarketDataAccess(
+                market=Market.US,
+                operation=ProviderOperation.QUOTES,
+                data_quality=DataDeliveryQuality.HISTORICAL,
+            ),
+        ),
+    )
     with raises(PermissionError, match="does not enable bars"):
         validate_bar_request(quotes_capability, quotes_access, request)
 
@@ -534,7 +619,17 @@ def test_bar_request_checks_premarket_capability_and_account_access() -> None:
     with raises(ValueError, match="premarket"):
         validate_bar_request(make_capability(), access, request)
 
-    capability = make_capability(supports_premarket=True)
+    capability = make_capability(
+        market_data_capabilities=(
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.DAY_1,),
+                supports_premarket=True,
+                historical_start=date(2020, 1, 1),
+            ),
+        ),
+    )
     with raises(PermissionError, match="premarket"):
         validate_bar_request(capability, access, request)
 
@@ -557,7 +652,17 @@ def test_bar_request_checks_afterhours_capability_and_account_access() -> None:
     with raises(ValueError, match="after-hours"):
         validate_bar_request(make_capability(), access, request)
 
-    capability = make_capability(supports_afterhours=True)
+    capability = make_capability(
+        market_data_capabilities=(
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.DAY_1,),
+                supports_afterhours=True,
+                historical_start=date(2020, 1, 1),
+            ),
+        ),
+    )
     with raises(PermissionError, match="after-hours"):
         validate_bar_request(capability, access, request)
 
@@ -574,7 +679,16 @@ def test_bar_request_checks_afterhours_capability_and_account_access() -> None:
 
 
 def test_bar_request_enforces_historical_start_in_market_timezone() -> None:
-    capability = make_capability(historical_start=date(2020, 1, 1))
+    capability = make_capability(
+        market_data_capabilities=(
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.DAY_1,),
+                historical_start=date(2020, 1, 1),
+            ),
+        ),
+    )
     access = make_access()
     before_us_boundary = make_request(
         start=datetime(2020, 1, 1, 1, 0, tzinfo=UTC),
@@ -587,3 +701,97 @@ def test_bar_request_enforces_historical_start_in_market_timezone() -> None:
         start=datetime(2020, 1, 1, 5, 0, tzinfo=UTC),
     )
     assert validate_bar_request(capability, access, at_us_boundary) is at_us_boundary
+
+def test_bar_request_rejects_cross_market_extended_hours_capability() -> None:
+    capability = make_capability(
+        supported_markets=(Market.US, Market.HK),
+        market_data_capabilities=(
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.DAY_1,),
+                supports_premarket=True,
+            ),
+            MarketDataCapability(
+                market=Market.HK,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.DAY_1,),
+            ),
+        ),
+    )
+    access = make_access(
+        market_data_quality=(
+            MarketDataAccess(
+                market=Market.HK,
+                operation=ProviderOperation.BARS,
+                data_quality=DataDeliveryQuality.HISTORICAL,
+            ),
+        ),
+    )
+    request = make_request(market=Market.HK, include_premarket=True)
+
+    with raises(ValueError, match="premarket"):
+        validate_bar_request(capability, access, request)
+
+
+def test_bar_request_rejects_cross_operation_extended_hours_capability() -> None:
+    capability = make_capability(
+        market_data_capabilities=(
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.DAY_1,),
+            ),
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.QUOTES,
+                supports_premarket=True,
+            ),
+        ),
+        operations=(ProviderOperation.BARS, ProviderOperation.QUOTES),
+    )
+    access = make_access()
+    request = make_request(include_premarket=True)
+
+    with raises(ValueError, match="premarket"):
+        validate_bar_request(capability, access, request)
+
+
+def test_bar_request_rejects_cross_operation_account_entitlement() -> None:
+    capability = make_capability(
+        market_data_capabilities=(
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.DAY_1,),
+                supports_afterhours=True,
+            ),
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.QUOTES,
+                supports_afterhours=True,
+            ),
+        ),
+        operations=(ProviderOperation.BARS, ProviderOperation.QUOTES),
+    )
+    access = make_access(
+        enabled_operations=(ProviderOperation.BARS, ProviderOperation.QUOTES),
+        market_data_quality=(
+            MarketDataAccess(
+                market=Market.US,
+                operation=ProviderOperation.BARS,
+                data_quality=DataDeliveryQuality.HISTORICAL,
+            ),
+            MarketDataAccess(
+                market=Market.US,
+                operation=ProviderOperation.QUOTES,
+                data_quality=DataDeliveryQuality.HISTORICAL,
+                allows_afterhours=True,
+            ),
+        ),
+    )
+    request = make_request(include_afterhours=True)
+
+    with raises(PermissionError, match="after-hours"):
+        validate_bar_request(capability, access, request)
+
