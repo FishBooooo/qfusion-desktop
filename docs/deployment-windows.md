@@ -77,10 +77,12 @@ standalone 可执行文件旁的 `qfusion_migrations/`，运行时不依赖源�
    意外路径、符号链接和越界文件；
 6. 执行 compiled CLI 的 `--verify-migration-assets`，接受 Windows CRLF 或 POSIX LF，
    但拒绝额外输出行；
-7. 由操作系统分配动态 `127.0.0.1` 端口；
-8. 记录 PID、启动时间、工作目录、端口和用途；
-9. 禁止 HTTP 重定向，只请求精确 `/api/v1/health` 并验证健康响应；
-10. 停止前再次核验所持进程对象和身份。
+7. 以空 `PYTHONTZPATH` 执行 compiled CLI 的 `--verify-timezone-data`，由独立 EXE
+   清空系统 `TZPATH` 后实际构造 US/HK 两个 `ZoneInfo`，并拒绝额外输出行；
+8. 由操作系统分配动态 `127.0.0.1` 端口；
+9. 记录 PID、启动时间、工作目录、端口和用途；
+10. 禁止 HTTP 重定向，只请求精确 `/api/v1/health` 并验证健康响应；
+11. 停止前再次核验所持进程对象和身份。
 
 日志与运行记录写入 Runner 当前仓库内的 `.tmp/`，不连接本机、局域网、科研服务或其他
 进程。
