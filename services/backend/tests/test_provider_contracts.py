@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta, timezone
 from uuid import UUID
+from zoneinfo import ZoneInfo, reset_tzpath
 
 from pydantic import ValidationError
 from pytest import mark, raises
@@ -28,6 +29,12 @@ from qfusion.providers import (
 
 INSTRUMENT_ID = UUID("10000000-0000-4000-8000-000000000001")
 DECISION_TIME = datetime(2026, 7, 30, 20, 0, tzinfo=UTC)
+DEFAULT_DAILY_HISTORY = (
+    BarHistoryWindow(
+        interval=DataInterval.DAY_1,
+        historical_start=date(2020, 1, 1),
+    ),
+)
 
 
 def make_capability(**overrides: object) -> ProviderCapability:
@@ -263,6 +270,13 @@ def test_scoped_market_data_capability_rejects_invalid_combinations() -> None:
             ),
         )
 
+    with raises(ValidationError, match="cover every supported interval"):
+        MarketDataCapability(
+            market=Market.US,
+            operation=ProviderOperation.BARS,
+            supported_intervals=(DataInterval.DAY_1,),
+        )
+
     with raises(ValidationError, match="only bars"):
         MarketDataCapability(
             market=Market.US,
@@ -276,6 +290,7 @@ def test_capability_rejects_duplicate_missing_or_unsupported_scoped_entries() ->
         market=Market.US,
         operation=ProviderOperation.BARS,
         supported_intervals=(DataInterval.DAY_1,),
+        bar_history=DEFAULT_DAILY_HISTORY,
     )
     with raises(ValidationError, match="at most one entry"):
         make_capability(market_data_capabilities=(bars, bars))
@@ -290,6 +305,7 @@ def test_capability_rejects_duplicate_missing_or_unsupported_scoped_entries() ->
                     market=Market.HK,
                     operation=ProviderOperation.BARS,
                     supported_intervals=(DataInterval.DAY_1,),
+                    bar_history=DEFAULT_DAILY_HISTORY,
                 ),
             ),
         )
@@ -302,6 +318,7 @@ def test_capability_accepts_coherent_feature_and_realtime_declarations() -> None
                 market=Market.US,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
+                bar_history=DEFAULT_DAILY_HISTORY,
             ),
             MarketDataCapability(
                 market=Market.US,
@@ -365,6 +382,7 @@ def test_capability_feature_flags_must_match_operations(
                 market=Market.US,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
+                bar_history=DEFAULT_DAILY_HISTORY,
             ),
             MarketDataCapability(
                 market=Market.US,
@@ -539,6 +557,7 @@ def test_provider_access_allows_realtime_only_when_capability_supports_it() -> N
                 market=Market.US,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
+                bar_history=DEFAULT_DAILY_HISTORY,
                 supports_realtime=True,
             ),
         ),
@@ -823,6 +842,21 @@ def test_bar_request_enforces_historical_start_in_market_timezone() -> None:
     assert validate_bar_request(capability, access, at_us_boundary) is at_us_boundary
 
 
+def test_packaged_tzdata_resolves_market_zones_without_system_database() -> None:
+    ZoneInfo.clear_cache()
+    reset_tzpath(())
+    try:
+        assert ZoneInfo("America/New_York").key == "America/New_York"
+        assert ZoneInfo("Asia/Hong_Kong").key == "Asia/Hong_Kong"
+        request = make_request(
+            start=datetime(2020, 1, 1, 5, 0, tzinfo=UTC),
+        )
+        assert validate_bar_request(make_capability(), make_access(), request) is request
+    finally:
+        reset_tzpath()
+        ZoneInfo.clear_cache()
+
+
 def test_bar_request_scopes_historical_start_by_interval() -> None:
     capability = make_capability(
         market_data_capabilities=(
@@ -865,12 +899,14 @@ def test_bar_request_rejects_cross_market_extended_hours_capability() -> None:
                 market=Market.US,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
+                bar_history=DEFAULT_DAILY_HISTORY,
                 supports_premarket=True,
             ),
             MarketDataCapability(
                 market=Market.HK,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
+                bar_history=DEFAULT_DAILY_HISTORY,
             ),
         ),
     )
@@ -896,6 +932,7 @@ def test_bar_request_rejects_cross_operation_extended_hours_capability() -> None
                 market=Market.US,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
+                bar_history=DEFAULT_DAILY_HISTORY,
             ),
             MarketDataCapability(
                 market=Market.US,
@@ -920,12 +957,14 @@ def test_bar_request_rejects_cross_market_account_entitlement() -> None:
                 market=Market.US,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
+                bar_history=DEFAULT_DAILY_HISTORY,
                 supports_premarket=True,
             ),
             MarketDataCapability(
                 market=Market.HK,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
+                bar_history=DEFAULT_DAILY_HISTORY,
                 supports_premarket=True,
             ),
         ),
@@ -959,6 +998,7 @@ def test_bar_request_rejects_cross_operation_account_entitlement() -> None:
                 market=Market.US,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
+                bar_history=DEFAULT_DAILY_HISTORY,
                 supports_afterhours=True,
             ),
             MarketDataCapability(
