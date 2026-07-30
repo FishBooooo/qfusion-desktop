@@ -218,10 +218,28 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 
 ## M2：首批数据适配器
 
-状态：入口条件已满足；先实现供应商能力契约与确定性 Mock Adapter。
+状态：入口条件已满足；M2-A 候选等待跨平台 Runner 验证。
 
 实现 SEC、FRED、一个美股行情源、一个港股行情源和必要的 Mock Adapter。逐一验证许可、
 字段、限流、时区、休市和延迟状态。
+
+### M2-A：供应商能力、账户权限与 Synthetic Mock
+
+候选范围：
+
+- [x] 供应商技术能力与当前账户实际权限使用两份独立、冻结的 Pydantic 契约；
+- [x] 能力声明覆盖市场、资产、周期、产品特性、限流、历史起点、venue、质量与许可；
+- [x] 账户权限逐市场记录实时、延迟、EOD、历史、Mock 或不可用状态；
+- [x] bar 请求同时携带内部 UUID、供应商不透明证券 ID 和 Point-in-Time 时间边界；
+- [x] `ProviderAdapter` 与 `MarketDataProvider` Protocol 不暴露供应商 SDK 类型；
+- [x] Synthetic Mock 仅返回 `SYNTHETIC_MOCK`/`test-only` 的合成事实；
+- [x] Mock 按证券、事实类型、事件区间和 `available_at <= decision_time` 过滤；
+- [x] ADR-0011 和供应商登记已更新；
+- [ ] Linux Runner 的 Lint、mypy、pytest、前端回归、构建与动态 E2E；
+- [ ] Windows Runner 的 Rust、Python、前端、standalone Sidecar 与 NSIS 回归。
+
+M2-A 不新增依赖、不修改锁文件、不访问网络端点、不读取凭证，也不实现真实供应商或
+Instrument Registry。通过跨平台门禁并合并后进入 M2-B。
 
 ## M3：因子和特征系统
 
