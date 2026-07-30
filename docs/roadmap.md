@@ -237,7 +237,8 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 - [x] Synthetic Mock 仅返回 `SYNTHETIC_MOCK`/`test-only` 的合成事实；
 - [x] Mock 按证券、事实类型、事件区间和 `available_at <= decision_time` 过滤，并对输入
   与返回记录执行深拷贝以隔离嵌套载荷变更；
-- [x] 锁定项目本地 `tzdata` 2026.3；Nuitka 显式包含并审计 US/HK 所需 IANA 资产；
+- [x] 锁定项目本地 `tzdata` 2026.3；Nuitka 显式包含并审计 US/HK 所需 IANA 资产，
+  compiled CLI 在空系统 `TZPATH` 下实际解析两个时区；
 - [x] ADR-0011、供应商登记、测试和 Windows 部署文档已更新；
 - [ ] Linux Runner 的 Lint、mypy、pytest、前端回归、构建与动态 E2E；
 - [ ] Windows Runner 的 Rust、Python、前端、standalone Sidecar 与 NSIS 回归。
