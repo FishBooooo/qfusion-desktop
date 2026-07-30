@@ -17,7 +17,7 @@ M2-C1 已建立固定 `data.sec.gov` 出站、声明式 User-Agent、首次观�
 
 新增仅由 `workflow_dispatch` 触发的 GitHub 托管 Runner 门禁：
 
-1. 工作流没有 `push`、`pull_request` 或定时触发器。
+1. 工作流没有 `push`、`pull_request` 或定时触发器；同一 CIK 的运行强制串行。
 2. 精确 10 位 CIK 是唯一业务输入；URL 仍由 SEC Transport 固定生成。
 3. 联系标识只从仓库 Secret `SEC_USER_AGENT` 注入到权限为 `0600` 的 Runner 临时文件，
    不作为进程参数、环境透传、日志字段、清单字段或 Artifact 内容。
