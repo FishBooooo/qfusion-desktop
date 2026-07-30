@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M2-C2a SEC 官方响应手动采集门禁已验收并合并；尚未执行 live request
+状态：M2-D0 供应商使用许可门禁已实现，等待跨平台验证；FRED 保持许可阻断
 最后更新：2026-07-30
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -218,7 +218,7 @@ SQLite，也没有接入供应商、模型、订单或真实金融数据。
 
 ## M2：首批数据适配器
 
-状态：M2-A、M2-B、M2-C1 与 M2-C2a 已通过跨平台 Runner 验证并合并；M2-C 继续实施。
+状态：M2-A、M2-B、M2-C1 与 M2-C2a 已验收；M2-D0 实现等待跨平台门禁。
 
 实现 SEC、FRED、一个美股行情源、一个港股行情源和必要的 Mock Adapter。逐一验证许可、
 字段、限流、时区、休市和延迟状态。
@@ -374,6 +374,26 @@ squash 合并到 `main` 提交
 本验收只确认门禁实现，不代表已执行真实 SEC 请求，也不完成 Raw Store、Repository、
 Scheduler 或 company facts。完整决策见
 [ADR-0014](adr/0014-manual-sec-official-capture.md)。
+
+### M2-D0：结构化供应商使用许可门禁
+
+实现范围：
+
+- [x] `ProviderCapability` Schema `2.0.0` 强制包含冻结的 `ProviderUsagePolicy`；
+- [x] 个人研究、缓存、持久化、私有/公开展示、商业使用、再分发和模型处理逐项记录；
+- [x] 只有 `ALLOWED` 可通过；`PROHIBITED`/`UNVERIFIED` 输出
+  `BLOCKED_BY_PROVIDER_LICENSE` 并在副作用前拒绝；
+- [x] Synthetic Mock 与 SEC 声明显式用途策略，SEC 持久化校验位于 Transport 之前；
+- [x] 拒绝测试证明持久化被禁时不调用 SEC Transport；
+- [x] FRED 官方许可冲突和候选替代边界写入 ADR-0015 与供应商登记；
+- [ ] Linux/Windows exact-head 门禁与正式验收记录。
+
+官方 FRED 条款当前禁止 API 内容的存储、缓存、归档以及软件/机器学习/AI 相关系统用途，
+与 QFusion 的本地持久化、离线可用和模型输入路径直接冲突。因此不创建 FRED Adapter、
+不配置 API key、不调用端点，并标记 `BLOCKED_BY_PROVIDER_LICENSE`。BLS、BEA、
+Treasury 等原始官方宏观来源只作为候选，需分别验证许可、修订和 Point-in-Time 语义。
+
+M2-D0 不新增依赖、不修改数据库、不执行真实供应商请求，也不完成 M2-D 的宏观数据接入。
 
 ## M3：因子和特征系统
 
