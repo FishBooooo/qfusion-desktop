@@ -197,6 +197,8 @@ class ProviderCapability(ProviderContract):
             raise ValueError("bars capability requires supported_intervals")
         if any(policy.operation not in operation_set for policy in self.rate_limit):
             raise ValueError("rate_limit references an undeclared operation")
+        if self.supports_realtime and not (operation_set & market_data_operations):
+            raise ValueError("realtime support requires a market-data operation")
         if (self.supports_premarket or self.supports_afterhours) and not (
             operation_set & market_data_operations
         ):
