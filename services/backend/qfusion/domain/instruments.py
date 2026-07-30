@@ -23,6 +23,29 @@ OpaqueIdentifier = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1, max_length=256),
 ]
+_ALLOWED_TICKER_CHARACTERS = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-/"
+)
+
+
+def _normalize_ticker(value: str) -> str:
+    normalized = value.strip().upper()
+    if any(character.isspace() for character in normalized):
+        raise ValueError("ticker must not contain whitespace")
+    if any(character not in _ALLOWED_TICKER_CHARACTERS for character in normalized):
+        raise ValueError("ticker contains unsupported characters")
+    return normalized
+
+
+def _normalize_provider_name(value: str) -> str:
+    return value.strip().casefold()
+
+
+def _normalize_opaque_identifier(value: str) -> str:
+    normalized = value.strip()
+    if any(ord(character) < 32 or ord(character) == 127 for character in normalized):
+        raise ValueError("provider_instrument_id must not contain control characters")
+    return normalized
 
 
 class InstrumentAssetType(StrEnum):
@@ -102,13 +125,7 @@ class TickerAlias(EffectiveIdentifier):
     @field_validator("ticker")
     @classmethod
     def normalize_ticker(cls, value: str) -> str:
-        normalized = value.strip().upper()
-        if any(character.isspace() for character in normalized):
-            raise ValueError("ticker must not contain whitespace")
-        allowed = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-/")
-        if any(character not in allowed for character in normalized):
-            raise ValueError("ticker contains unsupported characters")
-        return normalized
+        return _normalize_ticker(value)
 
 
 class ProviderInstrumentMapping(EffectiveIdentifier):
@@ -123,15 +140,12 @@ class ProviderInstrumentMapping(EffectiveIdentifier):
     @field_validator("provider_name")
     @classmethod
     def normalize_provider_name(cls, value: str) -> str:
-        return value.strip().casefold()
+        return _normalize_provider_name(value)
 
     @field_validator("provider_instrument_id")
     @classmethod
     def validate_opaque_identifier(cls, value: str) -> str:
-        normalized = value.strip()
-        if any(ord(character) < 32 or ord(character) == 127 for character in normalized):
-            raise ValueError("provider_instrument_id must not contain control characters")
-        return normalized
+        return _normalize_opaque_identifier(value)
 
 
 class InstrumentQuery(DomainContract):
@@ -173,7 +187,7 @@ class TickerLookup(EffectiveLookup):
     @field_validator("ticker")
     @classmethod
     def normalize_ticker(cls, value: str) -> str:
-        return TickerAlias.normalize_ticker(value)
+        return _normalize_ticker(value)
 
 
 class ProviderIdentifierLookup(EffectiveLookup):
@@ -185,12 +199,12 @@ class ProviderIdentifierLookup(EffectiveLookup):
     @field_validator("provider_name")
     @classmethod
     def normalize_provider_name(cls, value: str) -> str:
-        return value.strip().casefold()
+        return _normalize_provider_name(value)
 
     @field_validator("provider_instrument_id")
     @classmethod
     def validate_opaque_identifier(cls, value: str) -> str:
-        return ProviderInstrumentMapping.validate_opaque_identifier(value)
+        return _normalize_opaque_identifier(value)
 
 
 class ProviderMappingLookup(EffectiveLookup):
@@ -202,7 +216,7 @@ class ProviderMappingLookup(EffectiveLookup):
     @field_validator("provider_name")
     @classmethod
     def normalize_provider_name(cls, value: str) -> str:
-        return value.strip().casefold()
+        return _normalize_provider_name(value)
 
 
 def require_instrument_available(
