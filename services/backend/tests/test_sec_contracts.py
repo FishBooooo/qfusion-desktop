@@ -48,7 +48,6 @@ def make_request(**overrides: object) -> SecFilingRequest:
         "instrument_id": INSTRUMENT_ID,
         "provider_instrument_id": "0000000001",
         "market": Market.US,
-        "decision_time": DECISION_TIME,
     }
     values.update(overrides)
     return SecFilingRequest.model_validate(values)
@@ -61,15 +60,15 @@ def test_request_normalizes_forms_and_exposes_exact_cik() -> None:
     assert request.cik == "0000000001"
 
 
-def test_request_rejects_noncanonical_cik_market_time_and_duplicate_forms() -> None:
+def test_request_rejects_noncanonical_cik_market_and_duplicate_forms() -> None:
     with raises(ValidationError, match="string_pattern_mismatch"):
         make_request(provider_instrument_id="1")
     with raises(ValidationError, match="US market"):
         make_request(market=Market.HK)
-    with raises(ValidationError, match="timezone-aware"):
-        make_request(decision_time=datetime(2026, 7, 30, 12, 0))
     with raises(ValidationError, match="forms must be unique"):
         make_request(forms=("10-k", "10-K"))
+    with raises(ValidationError, match="timezone-aware"):
+        SecJsonResponse(payload={}, received_at=datetime(2026, 7, 30, 12, 0))
 
 
 def test_transport_config_requires_declared_contact_and_caps_rate() -> None:

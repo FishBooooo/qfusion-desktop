@@ -40,14 +40,8 @@ class SecFilingRequest(ProviderContract):
     instrument_id: UUID
     provider_instrument_id: SecCik
     market: Market
-    decision_time: datetime
     forms: tuple[NonEmptyText, ...] = ()
     limit: int = Field(default=1000, ge=1, le=1000)
-
-    @field_validator("decision_time")
-    @classmethod
-    def normalize_decision_time(cls, value: datetime) -> datetime:
-        return _as_utc(value)
 
     @field_validator("forms")
     @classmethod

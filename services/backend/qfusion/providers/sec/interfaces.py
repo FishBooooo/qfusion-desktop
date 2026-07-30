@@ -18,5 +18,5 @@ class SecFilingProvider(ProviderAdapter, Protocol):
         self,
         request: SecFilingRequest,
     ) -> Sequence[DataSourceRecord]:
-        """Return Point-in-Time-safe SEC filing metadata."""
+        """Return traceable SEC filing facts for persistence."""
         ...

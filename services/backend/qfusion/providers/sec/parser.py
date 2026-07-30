@@ -73,7 +73,7 @@ class _RecentFiling(BaseModel):
     @field_validator("report_date", mode="before")
     @classmethod
     def normalize_empty_report_date(cls, value: object) -> object:
-        return None if value in {"", None} else value
+        return None if value is None or value == "" else value
 
     @field_validator("acceptance_date_time")
     @classmethod
@@ -208,9 +208,6 @@ def parse_sec_submissions(
             raise SecPayloadError(
                 "SEC acceptanceDateTime must not be after the observed receipt time"
             )
-        if observed_at > request.decision_time:
-            continue
-
         report_or_filing_date = filing.report_date or filing.filing_date
         event_time = datetime.combine(report_or_filing_date, time.min, tzinfo=UTC)
         canonical_row = json.dumps(

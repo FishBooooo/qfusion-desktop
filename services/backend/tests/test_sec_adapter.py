@@ -13,7 +13,7 @@ from uuid import UUID
 from pydantic import JsonValue, ValidationError
 from pytest import raises
 
-from qfusion.domain import Market
+from qfusion.domain import FactQuery, Market, require_point_in_time
 from qfusion.providers.sec import (
     SecEdgarProvider,
     SecFilingRequest,
@@ -52,7 +52,6 @@ def request(**overrides: object) -> SecFilingRequest:
         "instrument_id": INSTRUMENT_ID,
         "provider_instrument_id": "0000000001",
         "market": Market.US,
-        "decision_time": RECEIVED_AT + timedelta(seconds=1),
     }
     values.update(overrides)
     return SecFilingRequest.model_validate(values)
@@ -70,16 +69,23 @@ def test_adapter_uses_registry_cik_and_returns_point_in_time_records() -> None:
     assert all(record.available_at <= request().decision_time for record in records)
 
 
-def test_adapter_returns_empty_when_first_observation_is_after_decision() -> None:
+def test_adapter_returns_observed_facts_for_repository_point_in_time_gate() -> None:
     provider = SecEdgarProvider(FixtureTransport(load_fixture()))
-
-    records = asyncio.run(
-        provider.get_filings(
-            request(decision_time=RECEIVED_AT - timedelta(microseconds=1))
-        )
+    records = tuple(asyncio.run(provider.get_filings(request())))
+    before_observation = FactQuery(
+        decision_time=RECEIVED_AT - timedelta(microseconds=1),
+        instrument_ids=(INSTRUMENT_ID,),
+        fact_types=("filing_metadata",),
+    )
+    at_observation = FactQuery(
+        decision_time=RECEIVED_AT,
+        instrument_ids=(INSTRUMENT_ID,),
+        fact_types=("filing_metadata",),
     )
 
-    assert records == ()
+    with raises(ValueError, match="unavailable"):
+        require_point_in_time(before_observation, records)
+    assert require_point_in_time(at_observation, records) == records
 
 
 def test_adapter_filters_form_without_mutating_transport_payload() -> None:

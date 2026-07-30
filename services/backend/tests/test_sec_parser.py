@@ -20,7 +20,6 @@ _FIXTURE = (
 )
 INSTRUMENT_ID = UUID("30000000-0000-4000-8000-000000000001")
 RECEIVED_AT = datetime(2026, 5, 8, 0, 0, tzinfo=UTC)
-DECISION_TIME = RECEIVED_AT + timedelta(seconds=1)
 
 
 def load_fixture() -> dict[str, JsonValue]:
@@ -35,7 +34,6 @@ def make_request(**overrides: object) -> SecFilingRequest:
         "instrument_id": INSTRUMENT_ID,
         "provider_instrument_id": "0000000001",
         "market": Market.US,
-        "decision_time": DECISION_TIME,
     }
     values.update(overrides)
     return SecFilingRequest.model_validate(values)
@@ -69,7 +67,7 @@ def test_fixture_parses_traceable_filings_with_observed_availability() -> None:
     assert len(records[0].raw_payload_hash) == 64
 
 
-def test_parser_filters_forms_limit_and_decision_time() -> None:
+def test_parser_filters_forms_and_limit() -> None:
     filtered = parse(forms=("10-k",))
     assert len(filtered) == 1
     assert filtered[0].payload["form"] == "10-K"
@@ -77,9 +75,6 @@ def test_parser_filters_forms_limit_and_decision_time() -> None:
     limited = parse(limit=1)
     assert len(limited) == 1
     assert limited[0].payload["form"] == "10-Q"
-
-    unavailable = parse(decision_time=RECEIVED_AT - timedelta(microseconds=1))
-    assert unavailable == ()
 
 
 def test_parser_is_deterministic_for_same_first_observation_envelope() -> None:

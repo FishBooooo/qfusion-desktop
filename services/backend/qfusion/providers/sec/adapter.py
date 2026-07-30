@@ -57,7 +57,7 @@ _SEC_ACCESS: Final = ProviderAccessProfile(
     provider_version=_SEC_CAPABILITY.provider_version,
     status=ProviderAccessStatus.ENABLED,
     access_scope="public-no-authentication",
-    verified_at=datetime(2025, 4, 8, tzinfo=UTC),
+    verified_at=datetime(2026, 7, 30, tzinfo=UTC),
     enabled_operations=(ProviderOperation.FILINGS,),
     market_data_quality=(),
     notes=(
@@ -86,7 +86,7 @@ class SecEdgarProvider:
         self,
         request: SecFilingRequest,
     ) -> Sequence[DataSourceRecord]:
-        """Return filing metadata first observed by the request decision time."""
+        """Return newly observed filing facts for persistence before snapshot queries."""
 
         validate_sec_filing_request(self.capability, self.access_profile, request)
         response = await self._transport.get_submissions(request.cik)

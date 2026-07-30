@@ -35,16 +35,21 @@ time 当作 `available_at` 会给历史决策引入不可证明的提前可用�
 7. `published_at` 记录 SEC acceptance datetime；`available_at` 记录 QFusion 第一次
    实际收到该 payload 的 `received_at`。这会牺牲未经历史采集的数据回测覆盖率，但不会
    假装内容在接收前已经可用。
-8. 每条 filing metadata 生成稳定 accession 身份、规范 raw-row SHA-256、来源/许可/版本和
-   修订元数据，并只返回 `available_at <= decision_time` 的事实。
-9. `httpx` 从开发依赖提升为同版本运行时依赖；锁更新只允许改变根包依赖归属，不允许
+8. Adapter 是采集边界，返回带首次观察时间的事实供 Repository 持久化，不接收模型决策
+   时间，也不直接向模型供数。后续 `FactReadRepository` 和 Snapshot Builder 必须执行
+   `available_at <= decision_time`；这样新采集事实可以入库，同时历史决策仍不能看到
+   当时尚未观察到的数据。
+9. 每条 filing metadata 生成稳定 accession 身份、规范 raw-row SHA-256、来源/许可/版本和
+   修订元数据。
+10. `httpx` 从开发依赖提升为同版本运行时依赖；锁更新只允许改变根包依赖归属，不允许
    升级、降级或增加其他包。
-10. Windows 构建 Artifact 的未来保留期设为 7 天，减少公开仓库仍可能产生的 Actions
+11. Windows 构建 Artifact 的未来保留期设为 7 天，减少公开仓库仍可能产生的 Actions
     存储占用；不删除既有 Artifact。
 
 ## 后果
 
 该边界不支持任意 URL、重定向或代理环境，减少 SSRF、私网访问和科研网络串扰风险。
-Submissions 的首次观察时间是保守的 Point-in-Time 边界；在建立可信历史采集前，旧 filing
-不会被回填为当时“已知”。M2-C 的 CI 能验证解析、限流、重试、重定向拒绝和网络地址策略，
+Submissions 的首次观察时间是保守的 Point-in-Time 边界；采集结果必须先持久化，再由
+Repository/Snapshot 的决策时间过滤。在建立可信历史采集前，旧 filing 不会被回填为当时
+“已知”。M2-C 的 CI 能验证解析、限流、重试、重定向拒绝和网络地址策略，
 但不能证明当前 SEC 在线可达，也不完成 company facts、观察池增量调度或 GUI 数据状态。
