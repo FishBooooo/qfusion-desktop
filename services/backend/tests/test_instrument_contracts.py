@@ -39,6 +39,10 @@ def make_instrument(**overrides: object) -> Instrument:
         "market": Market.US,
         "asset_type": InstrumentAssetType.STOCK,
         "display_name": "Synthetic Technology Inc.",
+        "source": "synthetic-registry",
+        "source_record_id": "instrument-qfus-1",
+        "source_version": "1.0.0",
+        "revision_id": "revision-1",
         "registered_at": VALID_FROM - timedelta(days=1),
     }
     values.update(overrides)
@@ -56,6 +60,7 @@ def make_alias(**overrides: object) -> TickerAlias:
         "available_at": VALID_FROM - timedelta(hours=1),
         "source": "synthetic-registry",
         "source_record_id": "ticker-qfus-1",
+        "source_version": "1.0.0",
         "revision_id": "revision-1",
     }
     values.update(overrides)
