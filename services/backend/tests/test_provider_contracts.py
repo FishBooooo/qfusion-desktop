@@ -11,6 +11,7 @@ from pytest import mark, raises
 from qfusion.domain import Market
 from qfusion.providers import (
     AssetType,
+    BarHistoryWindow,
     DataDeliveryQuality,
     DataInterval,
     MarketDataAccess,
@@ -40,7 +41,12 @@ def make_capability(**overrides: object) -> ProviderCapability:
                 market=Market.US,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
-                historical_start=date(2020, 1, 1),
+                bar_history=(
+                    BarHistoryWindow(
+                        interval=DataInterval.DAY_1,
+                        historical_start=date(2020, 1, 1),
+                    ),
+                ),
             ),
         ),
         "supports_options": False,
@@ -108,7 +114,12 @@ def test_capability_canonicalizes_collections_and_rate_limits() -> None:
                 market=Market.HK,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.MINUTE_1, DataInterval.DAY_1),
-                historical_start=date(2010, 1, 1),
+                bar_history=(
+                    BarHistoryWindow(
+                        interval=DataInterval.DAY_1,
+                        historical_start=date(2010, 1, 1),
+                    ),
+                ),
             ),
         ),
         operations=(ProviderOperation.QUOTES, ProviderOperation.BARS),
@@ -218,6 +229,38 @@ def test_scoped_market_data_capability_rejects_invalid_combinations() -> None:
             market=Market.US,
             operation=ProviderOperation.BARS,
             supported_intervals=(DataInterval.DAY_1, DataInterval.DAY_1),
+        )
+
+    history = BarHistoryWindow(
+        interval=DataInterval.DAY_1,
+        historical_start=date(2020, 1, 1),
+    )
+    with raises(ValidationError, match="at most one start per interval"):
+        MarketDataCapability(
+            market=Market.US,
+            operation=ProviderOperation.BARS,
+            supported_intervals=(DataInterval.DAY_1,),
+            bar_history=(history, history),
+        )
+
+    with raises(ValidationError, match="unsupported interval"):
+        MarketDataCapability(
+            market=Market.US,
+            operation=ProviderOperation.BARS,
+            supported_intervals=(DataInterval.DAY_1,),
+            bar_history=(
+                BarHistoryWindow(
+                    interval=DataInterval.MINUTE_1,
+                    historical_start=date(2020, 1, 1),
+                ),
+            ),
+        )
+
+    with raises(ValidationError, match="only bars"):
+        MarketDataCapability(
+            market=Market.US,
+            operation=ProviderOperation.QUOTES,
+            bar_history=(history,),
         )
 
 
@@ -621,7 +664,12 @@ def test_bar_request_checks_capability_entitlement_and_market_quality() -> None:
                 market=Market.US,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
-                historical_start=date(2020, 1, 1),
+                bar_history=(
+                    BarHistoryWindow(
+                        interval=DataInterval.DAY_1,
+                        historical_start=date(2020, 1, 1),
+                    ),
+                ),
             ),
             MarketDataCapability(
                 market=Market.US,
@@ -674,7 +722,12 @@ def test_bar_request_checks_premarket_capability_and_account_access() -> None:
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
                 supports_premarket=True,
-                historical_start=date(2020, 1, 1),
+                bar_history=(
+                    BarHistoryWindow(
+                        interval=DataInterval.DAY_1,
+                        historical_start=date(2020, 1, 1),
+                    ),
+                ),
             ),
         ),
     )
@@ -708,7 +761,12 @@ def test_bar_request_checks_afterhours_capability_and_account_access() -> None:
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
                 supports_afterhours=True,
-                historical_start=date(2020, 1, 1),
+                bar_history=(
+                    BarHistoryWindow(
+                        interval=DataInterval.DAY_1,
+                        historical_start=date(2020, 1, 1),
+                    ),
+                ),
             ),
         ),
     )
@@ -735,7 +793,12 @@ def test_bar_request_enforces_historical_start_in_market_timezone() -> None:
                 market=Market.US,
                 operation=ProviderOperation.BARS,
                 supported_intervals=(DataInterval.DAY_1,),
-                historical_start=date(2020, 1, 1),
+                bar_history=(
+                    BarHistoryWindow(
+                        interval=DataInterval.DAY_1,
+                        historical_start=date(2020, 1, 1),
+                    ),
+                ),
             ),
         ),
     )
@@ -751,6 +814,40 @@ def test_bar_request_enforces_historical_start_in_market_timezone() -> None:
         start=datetime(2020, 1, 1, 5, 0, tzinfo=UTC),
     )
     assert validate_bar_request(capability, access, at_us_boundary) is at_us_boundary
+
+
+def test_bar_request_scopes_historical_start_by_interval() -> None:
+    capability = make_capability(
+        market_data_capabilities=(
+            MarketDataCapability(
+                market=Market.US,
+                operation=ProviderOperation.BARS,
+                supported_intervals=(DataInterval.MINUTE_1, DataInterval.DAY_1),
+                bar_history=(
+                    BarHistoryWindow(
+                        interval=DataInterval.DAY_1,
+                        historical_start=date(2000, 1, 1),
+                    ),
+                    BarHistoryWindow(
+                        interval=DataInterval.MINUTE_1,
+                        historical_start=date(2025, 1, 1),
+                    ),
+                ),
+            ),
+        ),
+    )
+    access = make_access()
+    old_start = datetime(2020, 1, 2, 5, 0, tzinfo=UTC)
+
+    daily_request = make_request(start=old_start)
+    assert validate_bar_request(capability, access, daily_request) is daily_request
+
+    minute_request = make_request(
+        interval=DataInterval.MINUTE_1,
+        start=old_start,
+    )
+    with raises(ValueError, match="historical_start"):
+        validate_bar_request(capability, access, minute_request)
 
 
 def test_bar_request_rejects_cross_market_extended_hours_capability() -> None:
