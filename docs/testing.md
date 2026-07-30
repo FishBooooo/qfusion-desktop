@@ -215,6 +215,16 @@ SEC 第一采集切片必须以无网络测试覆盖：
 该验收没有执行真实 SEC 网络请求；官方响应 Fixture、Raw Store/Repository 持久化、
 Scheduler 和 company facts 仍属于后续门禁。
 
+## M2-C2a SEC 官方响应采集测试门禁
+
+常规 CI 继续禁止 live SEC。新增测试覆盖原始响应字节与解码对象一致性、字节上限、
+Content-Type、SHA-256、首次接收时间、CI commit/run 来源、无联系标识清单、精确字节写入
+和拒绝覆盖既有输出目录。
+
+独立手动工作流只有在默认分支存在合规的 `SEC_USER_AGENT` Secret 时才能在无网络
+Ruff、mypy 和 SEC pytest 通过后执行一次固定 origin 请求。该工作流尚未运行；因此当前
+只能报告“采集门禁候选”，不能报告官方响应 Fixture 或真实 SEC 可达性已验证。
+
 ## 后续金融测试门禁
 
 涉及行情、财务、新闻、预测或回测时，必须增加时区、交易日、截止时间、盘前盘后、复权、
