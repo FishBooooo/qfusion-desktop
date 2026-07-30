@@ -6,17 +6,35 @@ import asyncio
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from qfusion.domain import (
     AnalysisSnapshot,
+    Instrument,
+    InstrumentAssetType,
+    InstrumentQuery,
     Market,
+    ProviderIdentifierLookup,
+    ProviderInstrumentMapping,
+    ProviderMappingLookup,
     RequestedHorizon,
     TargetType,
+    TickerAlias,
+    TickerLookup,
+    require_instrument_available,
+    require_provider_identifier_match,
+    require_provider_mapping_match,
+    require_ticker_match,
 )
-from qfusion.storage.models import AnalysisSnapshotRow, SnapshotFactReferenceRow
+from qfusion.storage.models import (
+    AnalysisSnapshotRow,
+    InstrumentRow,
+    ProviderInstrumentMappingRow,
+    SnapshotFactReferenceRow,
+    TickerAliasRow,
+)
 
 
 class DuplicateSnapshotError(ValueError):
@@ -25,6 +43,362 @@ class DuplicateSnapshotError(ValueError):
 
 class SnapshotIntegrityError(ValueError):
     """Raised when persisted snapshot metadata no longer validates."""
+
+
+class DuplicateInstrumentError(ValueError):
+    """Raised when a permanent instrument UUID would be replaced."""
+
+
+class InstrumentIdentifierConflictError(ValueError):
+    """Raised when an identifier is duplicate, overlapping, or incorrectly scoped."""
+
+
+class InstrumentRegistryIntegrityError(ValueError):
+    """Raised when persisted instrument metadata fails Domain or temporal guards."""
+
+
+class SqlAlchemyInstrumentRegistryRepository:
+    """Persist permanent instruments and resolve Point-in-Time external identifiers."""
+
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
+        self._session_factory = session_factory
+
+    async def add_instrument(self, instrument: Instrument) -> None:
+        """Insert one permanent identity without replacement."""
+
+        await asyncio.to_thread(self._add_instrument_sync, instrument)
+
+    async def add_ticker_alias(self, alias: TickerAlias) -> None:
+        """Insert one effective ticker alias without overlapping an existing alias."""
+
+        await asyncio.to_thread(self._add_ticker_alias_sync, alias)
+
+    async def add_provider_mapping(self, mapping: ProviderInstrumentMapping) -> None:
+        """Insert one effective, opaque provider identifier mapping."""
+
+        await asyncio.to_thread(self._add_provider_mapping_sync, mapping)
+
+    async def get_instrument(self, query: InstrumentQuery) -> Instrument | None:
+        """Return an instrument only when registered by decision_time."""
+
+        return await asyncio.to_thread(self._get_instrument_sync, query)
+
+    async def resolve_ticker(self, query: TickerLookup) -> TickerAlias | None:
+        """Resolve ticker using both market-validity and knowledge time."""
+
+        return await asyncio.to_thread(self._resolve_ticker_sync, query)
+
+    async def resolve_provider_identifier(
+        self,
+        query: ProviderIdentifierLookup,
+    ) -> ProviderInstrumentMapping | None:
+        """Resolve an opaque provider identifier to one permanent instrument."""
+
+        return await asyncio.to_thread(self._resolve_provider_identifier_sync, query)
+
+    async def get_provider_mapping(
+        self,
+        query: ProviderMappingLookup,
+    ) -> ProviderInstrumentMapping | None:
+        """Return the provider identifier valid for one permanent instrument."""
+
+        return await asyncio.to_thread(self._get_provider_mapping_sync, query)
+
+    def _add_instrument_sync(self, instrument: Instrument) -> None:
+        row = InstrumentRow(
+            instrument_id=instrument.instrument_id,
+            schema_version=instrument.schema_version,
+            market=instrument.market.value,
+            asset_type=instrument.asset_type.value,
+            display_name=instrument.display_name,
+            registered_at=instrument.registered_at,
+        )
+        try:
+            with self._session_factory.begin() as session:
+                session.add(row)
+        except IntegrityError as error:
+            raise DuplicateInstrumentError(
+                f"instrument_id already exists or is invalid: {instrument.instrument_id}"
+            ) from error
+
+    def _add_ticker_alias_sync(self, alias: TickerAlias) -> None:
+        row = TickerAliasRow(
+            alias_id=alias.alias_id,
+            schema_version=alias.schema_version,
+            instrument_id=alias.instrument_id,
+            market=alias.market.value,
+            ticker=alias.ticker,
+            valid_from=alias.valid_from,
+            valid_to=alias.valid_to,
+            available_at=alias.available_at,
+            source=alias.source,
+            source_record_id=alias.source_record_id,
+            revision_id=alias.revision_id,
+        )
+        try:
+            with self._session_factory.begin() as session:
+                session.add(row)
+        except IntegrityError as error:
+            raise InstrumentIdentifierConflictError(
+                f"ticker alias conflicts with registry state: {alias.alias_id}"
+            ) from error
+
+    def _add_provider_mapping_sync(self, mapping: ProviderInstrumentMapping) -> None:
+        row = ProviderInstrumentMappingRow(
+            mapping_id=mapping.mapping_id,
+            schema_version=mapping.schema_version,
+            instrument_id=mapping.instrument_id,
+            market=mapping.market.value,
+            provider_name=mapping.provider_name,
+            provider_instrument_id=mapping.provider_instrument_id,
+            provider_version=mapping.provider_version,
+            valid_from=mapping.valid_from,
+            valid_to=mapping.valid_to,
+            available_at=mapping.available_at,
+            source_record_id=mapping.source_record_id,
+            revision_id=mapping.revision_id,
+        )
+        try:
+            with self._session_factory.begin() as session:
+                session.add(row)
+        except IntegrityError as error:
+            raise InstrumentIdentifierConflictError(
+                f"provider mapping conflicts with registry state: {mapping.mapping_id}"
+            ) from error
+
+    def _get_instrument_sync(self, query: InstrumentQuery) -> Instrument | None:
+        with self._session_factory() as session:
+            statement = select(InstrumentRow).where(
+                InstrumentRow.instrument_id == query.instrument_id,
+                InstrumentRow.registered_at <= query.decision_time,
+            )
+            row = session.scalar(statement)
+            if row is None:
+                return None
+            instrument = self._restore_instrument(row)
+            try:
+                return require_instrument_available(query, instrument)
+            except ValueError as error:
+                raise InstrumentRegistryIntegrityError(
+                    f"instrument failed Point-in-Time guard: {query.instrument_id}"
+                ) from error
+
+    def _resolve_ticker_sync(self, query: TickerLookup) -> TickerAlias | None:
+        with self._session_factory() as session:
+            statement = (
+                select(TickerAliasRow)
+                .where(
+                    TickerAliasRow.market == query.market.value,
+                    TickerAliasRow.ticker == query.ticker,
+                    TickerAliasRow.valid_from <= query.effective_at,
+                    or_(
+                        TickerAliasRow.valid_to.is_(None),
+                        TickerAliasRow.valid_to > query.effective_at,
+                    ),
+                    TickerAliasRow.available_at <= query.decision_time,
+                )
+                .order_by(
+                    TickerAliasRow.valid_from.desc(),
+                    TickerAliasRow.available_at.desc(),
+                    TickerAliasRow.alias_id,
+                )
+                .limit(2)
+            )
+            rows = tuple(session.scalars(statement).all())
+            if not rows:
+                return None
+            if len(rows) != 1:
+                raise InstrumentRegistryIntegrityError(
+                    "ticker lookup returned overlapping persisted mappings"
+                )
+            alias = self._restore_ticker_alias(rows[0])
+            self._require_registered_identity(session, alias.instrument_id, alias.market, alias.available_at)
+            try:
+                return require_ticker_match(query, alias)
+            except ValueError as error:
+                raise InstrumentRegistryIntegrityError(
+                    f"ticker alias failed Point-in-Time guard: {alias.alias_id}"
+                ) from error
+
+    def _resolve_provider_identifier_sync(
+        self,
+        query: ProviderIdentifierLookup,
+    ) -> ProviderInstrumentMapping | None:
+        with self._session_factory() as session:
+            statement = (
+                select(ProviderInstrumentMappingRow)
+                .where(
+                    ProviderInstrumentMappingRow.provider_name == query.provider_name,
+                    ProviderInstrumentMappingRow.market == query.market.value,
+                    ProviderInstrumentMappingRow.provider_instrument_id
+                    == query.provider_instrument_id,
+                    ProviderInstrumentMappingRow.valid_from <= query.effective_at,
+                    or_(
+                        ProviderInstrumentMappingRow.valid_to.is_(None),
+                        ProviderInstrumentMappingRow.valid_to > query.effective_at,
+                    ),
+                    ProviderInstrumentMappingRow.available_at <= query.decision_time,
+                )
+                .order_by(
+                    ProviderInstrumentMappingRow.valid_from.desc(),
+                    ProviderInstrumentMappingRow.available_at.desc(),
+                    ProviderInstrumentMappingRow.mapping_id,
+                )
+                .limit(2)
+            )
+            rows = tuple(session.scalars(statement).all())
+            if not rows:
+                return None
+            if len(rows) != 1:
+                raise InstrumentRegistryIntegrityError(
+                    "provider identifier lookup returned overlapping persisted mappings"
+                )
+            mapping = self._restore_provider_mapping(rows[0])
+            self._require_registered_identity(
+                session,
+                mapping.instrument_id,
+                mapping.market,
+                mapping.available_at,
+            )
+            try:
+                return require_provider_identifier_match(query, mapping)
+            except ValueError as error:
+                raise InstrumentRegistryIntegrityError(
+                    f"provider mapping failed Point-in-Time guard: {mapping.mapping_id}"
+                ) from error
+
+    def _get_provider_mapping_sync(
+        self,
+        query: ProviderMappingLookup,
+    ) -> ProviderInstrumentMapping | None:
+        with self._session_factory() as session:
+            statement = (
+                select(ProviderInstrumentMappingRow)
+                .where(
+                    ProviderInstrumentMappingRow.instrument_id == query.instrument_id,
+                    ProviderInstrumentMappingRow.provider_name == query.provider_name,
+                    ProviderInstrumentMappingRow.market == query.market.value,
+                    ProviderInstrumentMappingRow.valid_from <= query.effective_at,
+                    or_(
+                        ProviderInstrumentMappingRow.valid_to.is_(None),
+                        ProviderInstrumentMappingRow.valid_to > query.effective_at,
+                    ),
+                    ProviderInstrumentMappingRow.available_at <= query.decision_time,
+                )
+                .order_by(
+                    ProviderInstrumentMappingRow.valid_from.desc(),
+                    ProviderInstrumentMappingRow.available_at.desc(),
+                    ProviderInstrumentMappingRow.mapping_id,
+                )
+                .limit(2)
+            )
+            rows = tuple(session.scalars(statement).all())
+            if not rows:
+                return None
+            if len(rows) != 1:
+                raise InstrumentRegistryIntegrityError(
+                    "instrument lookup returned overlapping provider mappings"
+                )
+            mapping = self._restore_provider_mapping(rows[0])
+            self._require_registered_identity(
+                session,
+                mapping.instrument_id,
+                mapping.market,
+                mapping.available_at,
+            )
+            try:
+                return require_provider_mapping_match(query, mapping)
+            except ValueError as error:
+                raise InstrumentRegistryIntegrityError(
+                    f"provider mapping failed instrument guard: {mapping.mapping_id}"
+                ) from error
+
+    @classmethod
+    def _require_registered_identity(
+        cls,
+        session: Session,
+        instrument_id: UUID,
+        market: Market,
+        mapping_available_at: object,
+    ) -> Instrument:
+        row = session.get(InstrumentRow, instrument_id)
+        if row is None:
+            raise InstrumentRegistryIntegrityError(
+                f"identifier references a missing instrument: {instrument_id}"
+            )
+        instrument = cls._restore_instrument(row)
+        if instrument.market is not market:
+            raise InstrumentRegistryIntegrityError(
+                f"identifier market differs from instrument: {instrument_id}"
+            )
+        if not hasattr(mapping_available_at, "tzinfo"):
+            raise InstrumentRegistryIntegrityError("identifier available_at is invalid")
+        if instrument.registered_at > mapping_available_at:
+            raise InstrumentRegistryIntegrityError(
+                f"identifier predates instrument registration: {instrument_id}"
+            )
+        return instrument
+
+    @staticmethod
+    def _restore_instrument(row: InstrumentRow) -> Instrument:
+        try:
+            return Instrument(
+                schema_version=row.schema_version,
+                instrument_id=row.instrument_id,
+                market=Market(row.market),
+                asset_type=InstrumentAssetType(row.asset_type),
+                display_name=row.display_name,
+                registered_at=row.registered_at,
+            )
+        except (TypeError, ValueError) as error:
+            raise InstrumentRegistryIntegrityError(
+                f"invalid persisted instrument: {row.instrument_id}"
+            ) from error
+
+    @staticmethod
+    def _restore_ticker_alias(row: TickerAliasRow) -> TickerAlias:
+        try:
+            return TickerAlias(
+                schema_version=row.schema_version,
+                alias_id=row.alias_id,
+                instrument_id=row.instrument_id,
+                market=Market(row.market),
+                ticker=row.ticker,
+                valid_from=row.valid_from,
+                valid_to=row.valid_to,
+                available_at=row.available_at,
+                source=row.source,
+                source_record_id=row.source_record_id,
+                revision_id=row.revision_id,
+            )
+        except (TypeError, ValueError) as error:
+            raise InstrumentRegistryIntegrityError(
+                f"invalid persisted ticker alias: {row.alias_id}"
+            ) from error
+
+    @staticmethod
+    def _restore_provider_mapping(
+        row: ProviderInstrumentMappingRow,
+    ) -> ProviderInstrumentMapping:
+        try:
+            return ProviderInstrumentMapping(
+                schema_version=row.schema_version,
+                mapping_id=row.mapping_id,
+                instrument_id=row.instrument_id,
+                market=Market(row.market),
+                provider_name=row.provider_name,
+                provider_instrument_id=row.provider_instrument_id,
+                provider_version=row.provider_version,
+                valid_from=row.valid_from,
+                valid_to=row.valid_to,
+                available_at=row.available_at,
+                source_record_id=row.source_record_id,
+                revision_id=row.revision_id,
+            )
+        except (TypeError, ValueError) as error:
+            raise InstrumentRegistryIntegrityError(
+                f"invalid persisted provider mapping: {row.mapping_id}"
+            ) from error
 
 
 class SqlAlchemySnapshotRepository:
