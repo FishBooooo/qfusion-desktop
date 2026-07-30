@@ -42,6 +42,31 @@ class HostResolver(Protocol):
 class SecJsonTransport(Protocol):
     """Minimal transport consumed by the SEC Adapter and replaced by CI fakes."""
 
+    async def _read_bounded_body(self, response: httpx.Response) -> bytes:
+        declared_length = response.headers.get("Content-Length")
+        if declared_length is not None:
+            try:
+                parsed_length = int(declared_length)
+            except ValueError as error:
+                raise SecPayloadError(
+                    "SEC response Content-Length was invalid"
+                ) from error
+            if parsed_length < 0:
+                raise SecPayloadError("SEC response Content-Length was negative")
+            if parsed_length > self._config.max_response_bytes:
+                raise SecPayloadError(
+                    "SEC response body exceeded the configured byte limit"
+                )
+
+        body = bytearray()
+        async for chunk in response.aiter_bytes():
+            if len(body) + len(chunk) > self._config.max_response_bytes:
+                raise SecPayloadError(
+                    "SEC response body exceeded the configured byte limit"
+                )
+            body.extend(chunk)
+        return bytes(body)
+
     async def get_submissions(self, cik: str) -> SecJsonResponse:
         """Fetch one submissions JSON object for a validated ten-digit CIK."""
         ...
@@ -104,6 +129,7 @@ class SecHttpTransport:
             base_url=_SEC_BASE_URL,
             headers={
                 "Accept": "application/json",
+                "Accept-Encoding": "identity",
                 "User-Agent": config.user_agent,
             },
             timeout=httpx.Timeout(config.timeout_seconds),
@@ -165,8 +191,57 @@ class SecHttpTransport:
                 await self._wait_for_rate_slot()
 
                 response: httpx.Response | None = None
+                retry_delay: float | None = None
                 try:
-                    response = await self._client.get(path)
+                    request = self._client.build_request("GET", path)
+                    response = await self._client.send(request, stream=True)
+                    try:
+                        if 300 <= response.status_code < 400:
+                            raise SecTransportError("SEC redirects are not permitted")
+                        if response.status_code == 200:
+                            raw_body = await self._read_bounded_body(response)
+                            try:
+                                decoded: object = json.loads(raw_body)
+                            except (
+                                json.JSONDecodeError,
+                                UnicodeDecodeError,
+                            ) as error:
+                                raise SecPayloadError(
+                                    "SEC response body was not valid JSON"
+                                ) from error
+                            if not isinstance(decoded, dict) or not all(
+                                isinstance(key, str) for key in decoded
+                            ):
+                                raise SecPayloadError(
+                                    "SEC response body must be a JSON object"
+                                )
+                            payload = cast(dict[str, JsonValue], decoded)
+                            try:
+                                return SecJsonResponse(
+                                    payload=payload,
+                                    raw_body=raw_body,
+                                    received_at=self._utc_now(),
+                                    content_type=response.headers.get("Content-Type"),
+                                    etag=response.headers.get("ETag"),
+                                    last_modified=response.headers.get("Last-Modified"),
+                                )
+                            except ValidationError as error:
+                                raise SecPayloadError(
+                                    "SEC response envelope failed validation"
+                                ) from error
+
+                        if response.status_code not in _RETRYABLE_STATUS:
+                            raise SecTransportError(
+                                f"SEC request failed with HTTP {response.status_code}"
+                            )
+                        if attempt + 1 >= self._config.max_attempts:
+                            raise SecTransportError(
+                                "SEC request exhausted retries with HTTP "
+                                f"{response.status_code}"
+                            )
+                        retry_delay = self._retry_delay(attempt, response)
+                    finally:
+                        await response.aclose()
                 except httpx.TransportError as error:
                     last_transport_error = error
                     if attempt + 1 >= self._config.max_attempts:
@@ -174,47 +249,7 @@ class SecHttpTransport:
                     await self._sleep(self._retry_delay(attempt, None))
                     continue
 
-                if 300 <= response.status_code < 400:
-                    raise SecTransportError("SEC redirects are not permitted")
-                if response.status_code == 200:
-                    raw_body = response.content
-                    if len(raw_body) > self._config.max_response_bytes:
-                        raise SecPayloadError(
-                            "SEC response body exceeded the configured byte limit"
-                        )
-                    try:
-                        decoded: object = json.loads(raw_body)
-                    except (json.JSONDecodeError, UnicodeDecodeError) as error:
-                        raise SecPayloadError(
-                            "SEC response body was not valid JSON"
-                        ) from error
-                    if not isinstance(decoded, dict) or not all(
-                        isinstance(key, str) for key in decoded
-                    ):
-                        raise SecPayloadError("SEC response body must be a JSON object")
-                    payload = cast(dict[str, JsonValue], decoded)
-                    try:
-                        return SecJsonResponse(
-                            payload=payload,
-                            raw_body=raw_body,
-                            received_at=self._utc_now(),
-                            content_type=response.headers.get("Content-Type"),
-                            etag=response.headers.get("ETag"),
-                            last_modified=response.headers.get("Last-Modified"),
-                        )
-                    except ValidationError as error:
-                        raise SecPayloadError(
-                            "SEC response envelope failed validation"
-                        ) from error
-
-                if response.status_code not in _RETRYABLE_STATUS:
-                    raise SecTransportError(
-                        f"SEC request failed with HTTP {response.status_code}"
-                    )
-                if attempt + 1 >= self._config.max_attempts:
-                    raise SecTransportError(
-                        f"SEC request exhausted retries with HTTP {response.status_code}"
-                    )
-                await self._sleep(self._retry_delay(attempt, response))
+                if retry_delay is not None:
+                    await self._sleep(retry_delay)
 
         raise SecTransportError("SEC request exhausted transport retries") from last_transport_error
