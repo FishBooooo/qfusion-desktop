@@ -10,7 +10,7 @@ on:
         type: string
 
 concurrency:
-  group: sec-official-capture-${{ github.run_id }}
+  group: sec-official-capture-${{ inputs.cik }}
   cancel-in-progress: false
 
 permissions:
