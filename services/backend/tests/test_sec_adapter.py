@@ -37,13 +37,21 @@ def load_fixture() -> dict[str, JsonValue]:
 class FixtureTransport:
     def __init__(self, payload: dict[str, JsonValue]) -> None:
         self.payload = copy.deepcopy(payload)
+        self.raw_body = json.dumps(
+            self.payload,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
         self.ciks: list[str] = []
 
     async def get_submissions(self, cik: str) -> SecJsonResponse:
         self.ciks.append(cik)
         return SecJsonResponse(
             payload=copy.deepcopy(self.payload),
+            raw_body=self.raw_body,
             received_at=RECEIVED_AT,
+            content_type="application/json",
         )
 
 
