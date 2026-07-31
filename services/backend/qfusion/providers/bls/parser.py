@@ -155,11 +155,17 @@ def parse_bls_series(
                 raise BlsPayloadError("BLS response contained a duplicate observation period")
             seen_periods.add(period_key)
 
+            observation_year = int(observation.year)
+            if not request.start_year <= observation_year <= request.end_year:
+                raise BlsPayloadError(
+                    "BLS observation year fell outside the requested window"
+                )
+
             if observation.period == "M13":
                 continue
             monthly_count += 1
             month = int(observation.period[1:])
-            event_time = datetime(int(observation.year), month, 1, tzinfo=UTC)
+            event_time = datetime(observation_year, month, 1, tzinfo=UTC)
             if event_time > observed_at:
                 raise BlsPayloadError("BLS observation period starts after receipt time")
 
