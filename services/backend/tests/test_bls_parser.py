@@ -243,6 +243,20 @@ def test_parser_rejects_empty_duplicate_annual_only_and_future_observations() ->
         )
 
 
+def test_parser_rejects_observations_outside_requested_year_window() -> None:
+    payload = load_payload()
+    row = cast(dict[str, JsonValue], observations(payload)[0])
+    row["year"] = "2024"
+
+    with raises(BlsPayloadError, match="outside the requested window"):
+        parse_bls_series(
+            payload,
+            REQUEST,
+            received_at=OBSERVED_AT,
+            ingested_at=OBSERVED_AT,
+        )
+
+
 def test_parser_rejects_non_numeric_or_non_finite_values() -> None:
     for invalid in ("not-a-number", "NaN", "Infinity"):
         payload = load_payload()
