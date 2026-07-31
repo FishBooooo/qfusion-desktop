@@ -234,10 +234,15 @@ def test_parser_rejects_empty_duplicate_annual_only_and_future_observations() ->
     future = load_payload()
     future_row = cast(dict[str, JsonValue], observations(future)[0])
     future_row["year"] = "2027"
+    future_request = BlsSeriesRequest(
+        series_ids=REQUEST.series_ids,
+        start_year=REQUEST.start_year,
+        end_year=2027,
+    )
     with raises(BlsPayloadError, match="starts after receipt time"):
         parse_bls_series(
             future,
-            REQUEST,
+            future_request,
             received_at=OBSERVED_AT,
             ingested_at=OBSERVED_AT,
         )
