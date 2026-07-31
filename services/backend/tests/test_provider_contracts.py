@@ -198,10 +198,10 @@ def test_usage_gate_allows_only_explicitly_allowed_uses() -> None:
         validate_provider_usage(capability, ProviderUsage.REDISTRIBUTION)
 
 
-def test_capability_requires_usage_policy_schema_v2() -> None:
+def test_capability_requires_usage_policy_schema_v3() -> None:
     capability = make_capability()
 
-    assert capability.schema_version == "2.0.0"
+    assert capability.schema_version == "3.0.0"
     with raises(ValidationError, match="string_pattern_mismatch"):
         make_capability(schema_version="1.0.0")
 
@@ -275,12 +275,28 @@ def test_capability_canonicalizes_collections_and_rate_limits() -> None:
     )
 
 
+def test_macro_only_capability_accepts_no_security_asset_types() -> None:
+    capability = make_capability(
+        supported_asset_types=(),
+        market_data_capabilities=(),
+        operations=(ProviderOperation.MACRO_SERIES,),
+    )
+
+    assert capability.schema_version == "3.0.0"
+    assert capability.supported_asset_types == ()
+    assert capability.operations == (ProviderOperation.MACRO_SERIES,)
+
+
 @mark.parametrize(
     ("field", "value", "message"),
     [
         ("supported_markets", (), "supported_markets must not be empty"),
         ("supported_markets", (Market.US, Market.US), "supported_markets must be unique"),
-        ("supported_asset_types", (), "supported_asset_types must not be empty"),
+        (
+            "supported_asset_types",
+            (),
+            "providers without asset types may only declare macro_series",
+        ),
         (
             "supported_asset_types",
             (AssetType.STOCK, AssetType.STOCK),

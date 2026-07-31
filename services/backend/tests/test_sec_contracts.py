@@ -108,7 +108,7 @@ def test_provider_declares_public_no_auth_filings_only() -> None:
     assert provider.access_profile.market_data_quality == ()
     assert provider.capability.rate_limit[0].max_requests == 5
     assert provider.capability.rate_limit[0].max_concurrent == 1
-    assert provider.capability.schema_version == "2.0.0"
+    assert provider.capability.schema_version == "3.0.0"
     assert provider.capability.usage_policy.persistent_storage is (
         ProviderUsageStatus.ALLOWED
     )

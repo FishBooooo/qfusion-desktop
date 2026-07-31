@@ -283,6 +283,24 @@ Raw Store。FRED 许可冲突是预期门禁结果，不得通过放宽断言来
 
 本验收没有执行 FRED/ALFRED、live SEC 或其他真实供应商请求。
 
+## M2-D1 BLS v1 首次观察测试门禁
+
+无网络测试必须覆盖：
+
+- 纯 `macro_series` capability 可以不声明证券资产，其他空资产能力必须拒绝；
+- 序列 ID 规范化、重复/空集合、25 序列、闭区间 10 年和无 registration key 请求体；
+- 固定 host/path/headers、禁代理/重定向、全公网 DNS、非重试状态和有界重试；
+- 每 10 秒与每日项目预算、UTC 日切、响应字节/Content-Length 上限和非法时钟；
+- 精确原始响应字节与解码对象一致，JSON 非对象和损坏内容 fail closed；
+- 成功/失败 envelope、返回序列集合、重复期间、空数据、未来月份、非数值和非有限值；
+- `M13` 排除、原始字符串值/脚注、首次观察可用时间、稳定期间键和行级 revision；
+- 持久化与模型许可都在 Transport 前校验，拒绝时调用计数保持为零；
+- Provider、SEC、存储、快照、前端、standalone 与 NSIS 完整回归。
+
+Fixture 必须明确说明序列和值完全合成，不能作为 BLS 官方事实。常规 CI 不调用 live BLS；
+本切片也不验证 Scheduler、Raw Store、Repository、Snapshot 或真实网络可达性。Linux 与
+Windows exact-head 证据取得前不得把 M2-D1 标记为已验收。
+
 ## 后续金融测试门禁
 
 涉及行情、财务、新闻、预测或回测时，必须增加时区、交易日、截止时间、盘前盘后、复权、

@@ -1,6 +1,6 @@
 # 数据供应商登记
 
-状态：M2-D0 结构化供应商使用许可门禁已验收；FRED/ALFRED 保持许可阻断。
+状态：M2-D1 BLS v1 首次观察宏观适配器候选；FRED/ALFRED 保持许可阻断。
 最后更新：2026-07-31
 
 ## 1. 强制登记字段
@@ -48,7 +48,8 @@ UNAVAILABLE
 ### 2.1 使用许可是第三份独立事实
 
 `license_scope` 仍随每条 `DataSourceRecord` 保存，但不能授权缓存、落库、展示或模型使用。
-`ProviderCapability` Schema `2.0.0` 强制包含 `ProviderUsagePolicy`，并逐项记录：
+`ProviderCapability` Schema `3.0.0` 强制包含 `ProviderUsagePolicy`，并逐项记录。Schema 3
+同时增加 `macro_series` 操作；只有纯宏观序列 Provider 可以不声明证券资产类型：
 
 ```text
 personal_research
@@ -121,7 +122,7 @@ instrument_id + provider_name + market -> provider_instrument_id
 | 切片 | 供应商 | 预期用途 | 当前状态 |
 | --- | --- | --- | --- |
 | M2-C | SEC EDGAR `data.sec.gov` | 美股 submissions、filings、company facts | C2a 手动采集门禁已验收；官方响应、持久化与 company facts 待完成 |
-| M2-D | FRED/ALFRED | 美国宏观与 vintage/realtime period | `BLOCKED_BY_PROVIDER_LICENSE`；不创建 Adapter、不配置 key、不调用 |
+| M2-D | BLS Public Data API v1 | 美国劳工月度宏观序列 | D1 首次观察候选已实现；Mock-only 跨平台验收待完成；FRED 保持阻断 |
 | M2-E | Tiingo | 美股 EOD/历史行情候选 | 官方契约研究完成；需要用户自带 token，许可待账户验证 |
 | M2-F | Longbridge OpenAPI | 港股行情候选 | 官方契约研究完成；实际账户行情权限必须运行时验证 |
 
@@ -195,6 +196,33 @@ M2-D0 将供应商用途从自由文本标签升级为可执行契约。SEC fili
 真实 Adapter 必须使用官方响应 Fixture 做解析测试，CI 禁止调用真实端点。付费订阅、真实
 凭证注入和外部账户写入不在默认授权范围内。
 
+### 5.4 M2-D1 BLS Public Data API v1 首次观察候选
+
+| 字段 | 值 |
+| --- | --- |
+| Provider | `bls-public-data-v1` |
+| Provider version | `1.0.0` |
+| 市场/资产 | US 宏观；不声明证券资产类型 |
+| 当前操作 | `macro_series`，仅月度 `M01`–`M12` |
+| 请求限制 | 最多 25 个序列、闭区间最多 10 年、每日最多 25 次、并发 1 |
+| 数据质量 | `official-published-macro-series` |
+| License scope | `bls-api-secondary-use-with-attribution` |
+| 凭证 | 无；只使用 Public Data API v1 |
+| 网络 | 固定 `https://api.bls.gov:443/publicAPI/v1/timeseries/data/`，禁代理和重定向 |
+| 时间语义 | `published_at = available_at = received_at = QFusion first observed` |
+| 修订 | 稳定期间键 + 规范观察行 SHA-256；变化值形成新 fact，不覆盖旧观察 |
+
+BLS v1 不提供真实 API 发布时间、历史 vintage 或目录 metadata，且相对发布页面可能有
+一天滞后。Adapter 因此不会把观察月份或其他推测时间回填为可用时间。月度
+`event_time` 只表示观察期起点；历史值在首次采集前不能用于回测中的历史决策。原始值和
+脚注保持字符串语义，`M13` 年度行不进入月度事实。
+
+用途门禁在 Transport 前同时验证 `persistent_storage` 和 `model_processing`；公开展示、
+商业使用和再分发继续为 `UNVERIFIED`。常规测试只使用明确标记为合成的 Fixture 和
+Mock Transport，不执行 live 请求。本候选尚未接入 Raw Store、Repository、Snapshot、
+Scheduler 或 GUI。完整决策见
+[ADR-0016](adr/0016-bls-first-observed-macro-series.md)。
+
 ## 6. 后续门禁
 
 1. M2-B 的 Instrument Registry 已完成；真实 Adapter 只能接收其解析出的永久 UUID 与
@@ -202,7 +230,8 @@ M2-D0 将供应商用途从自由文本标签升级为可执行契约。SEC fili
 2. M2-C1 SEC submissions 采集边界与 M2-C2a 手动采集门禁已完成；实际官方响应、
    Fixture 审查、持久化与 company facts 仍是 M2-C 后续门禁。
 3. M2-D 的 FRED/ALFRED 方向因当前条款保持 `BLOCKED_BY_PROVIDER_LICENSE`；不得创建
-   会缓存、持久化或进入模型的 FRED Adapter。宏观替代来源必须先单独通过用途许可门禁。
+   会缓存、持久化或进入模型的 FRED Adapter。BLS v1 候选只能保存首次观察事实，不得把
+   月份或 BLS 页面发布时间推断为 API 历史可用时间。
 4. 每个 Adapter 必须覆盖限流、超时、重试、空响应、字段变化、时区、休市、修订和延迟
    标记测试。
 5. M2-G 才接入观察池增量同步和 GUI 数据状态；在此之前不声明 M2 完成。

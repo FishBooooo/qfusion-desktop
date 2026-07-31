@@ -1,6 +1,6 @@
 # QFusion Desktop 路线图
 
-状态：M2-D0 供应商使用许可门禁已验收；FRED 保持许可阻断，M2 继续进行
+状态：M2-D1 BLS v1 首次观察宏观适配器候选；跨平台验收待完成
 最后更新：2026-07-31
 最高依据：[PROJECT_TASKBOOK.md](../PROJECT_TASKBOOK.md)
 
@@ -402,6 +402,30 @@ M2-D0 不新增依赖、不修改数据库、不执行真实供应商请求，�
 并通过 [PR #19](https://github.com/FishBooooo/qfusion-desktop/pull/19) squash 合并到
 `main` 提交 `b7959fb33cc92a704504e2887b0b5e5a8807c1e3`。完整测试、Artifact、隔离与
 许可保留项见 [M2-D0 验收记录](m2d0-acceptance.md)。
+
+### M2-D1：BLS v1 首次观察宏观序列候选
+
+实现范围：
+
+- [x] 复核 BLS、BEA 和 Federal Reserve Board 官方接口、许可与时间语义；
+- [x] 选择无需凭证的 BLS Public Data API v1，FRED/ALFRED 继续保持许可阻断；
+- [x] `ProviderCapability` Schema `3.0.0` 增加纯宏观 `macro_series` 操作，不伪造证券
+  资产类型；
+- [x] 最多 25 序列、闭区间最多 10 年、月度限定和无注册 key 的请求契约；
+- [x] 固定 BLS 公网 origin、禁代理/重定向、DNS 公网校验、有界响应/重试和项目内
+  每日/突发预算；
+- [x] 首次观察 `available_at`、原始字符串值/脚注、稳定期间键和行 SHA-256 修订；
+- [x] 明确排除 `M13` 年度行，并拒绝空、重复、未来和非数值观察；
+- [x] 持久化与模型用途许可在 Transport 前 fail closed；
+- [x] 合成 Fixture、Mock-only 契约/解析/传输/Adapter 测试与 ADR-0016；
+- [ ] Linux exact-head CI、覆盖率与文档漂移门禁；
+- [ ] Windows standalone/NSIS exact-head 回归；
+- [ ] 独立验收记录与合并。
+
+本切片不新增依赖、不配置凭证、不执行 live BLS 请求，也不接入 Raw Store、Repository、
+Snapshot、Scheduler 或 GUI。BLS v1 不提供 vintage 或真实 API 发布时间，因此首次采集前
+的历史值不能用于声称过去决策时已知。完成跨平台验收后，下一小步是设计 BLS 原始响应与
+宏观事实的增量持久化，而不是放宽时间语义。
 
 ## M3：因子和特征系统
 
